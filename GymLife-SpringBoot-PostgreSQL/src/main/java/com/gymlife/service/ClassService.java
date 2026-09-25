@@ -14,13 +14,16 @@ public class ClassService {
     private final GroupClassRepository classes;
     private final UserRepository users;
     private final AttendanceRepository attendance;
+    private final EmailService emailService;
 
     public ClassService(GroupClassRepository classes,
                         UserRepository users,
-                        AttendanceRepository attendance) {
+                        AttendanceRepository attendance,
+                        EmailService emailService) {
         this.classes = classes;
         this.users = users;
         this.attendance = attendance;
+        this.emailService = emailService;
     }
 
     public GroupClass crear(GroupClass c) {
@@ -55,7 +58,13 @@ public class ClassService {
         }
 
         c.getUsuarios().add(u);
-        return classes.save(c);
+        GroupClass savedClass = classes.save(c);
+
+        // Envío de correo electrónico con horario de la clase reservada
+        String horarioStr = c.getHorario() != null ? c.getHorario().toString().replace("T", " ") : "Programado";
+        emailService.enviarCorreoReservaClase(u.getEmail(), u.getNombre(), c.getNombre(), horarioStr);
+
+        return savedClass;
     }
 
     public Attendance registrarAsistencia(Long claseId,

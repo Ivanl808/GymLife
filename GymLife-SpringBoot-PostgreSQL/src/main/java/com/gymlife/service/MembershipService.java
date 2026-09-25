@@ -15,13 +15,16 @@ public class MembershipService {
     private final MembershipRepository memberships;
     private final UserRepository users;
     private final PaymentRepository payments;
+    private final EmailService emailService;
 
     public MembershipService(MembershipRepository memberships,
                              UserRepository users,
-                             PaymentRepository payments) {
+                             PaymentRepository payments,
+                             EmailService emailService) {
         this.memberships = memberships;
         this.users = users;
         this.payments = payments;
+        this.emailService = emailService;
     }
 
     public Membership crear(Long usuarioId, Membership membership) {
@@ -43,7 +46,15 @@ public class MembershipService {
         payment.setFecha(LocalDateTime.now());
         m.setEstado(MembershipStatus.ACTIVA);
         memberships.save(m);
-        return payments.save(payment);
+        Payment savedPayment = payments.save(payment);
+
+        // Envío de correo electrónico de comprobante de pago
+        if (m.getUsuario() != null) {
+            String montoStr = payment.getMonto() != null ? payment.getMonto().toString() : "0.00";
+            emailService.enviarCorreoPagoConfirmado(m.getUsuario().getEmail(), m.getUsuario().getNombre(), m.getTipo(), montoStr);
+        }
+
+        return savedPayment;
     }
 
     public void actualizarVencidas() {
