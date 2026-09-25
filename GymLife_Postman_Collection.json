@@ -1,0 +1,651 @@
+{
+	"info": {
+		"_postman_id": "a2b3c4d5-e6f7-8901-abcd-ef1234567890",
+		"name": "GymLife API",
+		"description": "Colección completa de servicios REST para la plataforma GymLife Spring Boot",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:8080",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "Usuarios",
+			"item": [
+				{
+					"name": "Registrar Usuario (Miembro)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"nombre\": \"Juan Pérez\",\n  \"email\": \"juan.perez@example.com\",\n  \"passwordHash\": \"password123\",\n  \"rol\": \"MIEMBRO\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/usuarios/registro",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"usuarios",
+								"registro"
+							]
+						},
+						"description": "Registra un nuevo usuario en el sistema. Los roles válidos son: MIEMBRO, ENTRENADOR, ADMINISTRADOR."
+					},
+					"response": [
+						{
+							"name": "Ejemplo Respuesta Exitosa",
+							"originalRequest": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"nombre\": \"Juan Pérez\",\n  \"email\": \"juan.perez@example.com\",\n  \"passwordHash\": \"password123\",\n  \"rol\": \"MIEMBRO\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/usuarios/registro",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"usuarios",
+										"registro"
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"idUsuario\": 1,\n  \"nombre\": \"Juan Pérez\",\n  \"email\": \"juan.perez@example.com\",\n  \"rol\": \"MIEMBRO\"\n}"
+						}
+					]
+				},
+				{
+					"name": "Registrar Usuario (Entrenador)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"nombre\": \"Carlos Entrenador\",\n  \"email\": \"carlos.coach@example.com\",\n  \"passwordHash\": \"admin123\",\n  \"rol\": \"ENTRENADOR\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/usuarios/registro",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"usuarios",
+								"registro"
+							]
+						},
+						"description": "Registra un usuario con rol ENTRENADOR."
+					},
+					"response": []
+				},
+				{
+					"name": "Iniciar Sesión (Login)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"juan.perez@example.com\",\n  \"password\": \"password123\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/usuarios/login",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"usuarios",
+								"login"
+							]
+						},
+						"description": "Autentica al usuario comparando el correo y contraseña provistos."
+					},
+					"response": [
+						{
+							"name": "Ejemplo Login Correcto",
+							"originalRequest": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"email\": \"juan.perez@example.com\",\n  \"password\": \"password123\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/usuarios/login",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"usuarios",
+										"login"
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"mensaje\": \"Autenticación correcta\",\n  \"usuarioId\": 1,\n  \"nombre\": \"Juan Pérez\",\n  \"rol\": \"MIEMBRO\"\n}"
+						}
+					]
+				},
+				{
+					"name": "Listar Usuarios",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/usuarios",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"usuarios"
+							]
+						},
+						"description": "Obtiene la lista de todos los usuarios registrados."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Membresías y Pagos",
+			"item": [
+				{
+					"name": "Crear Membresía para Usuario",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"tipo\": \"Mensual VIP\",\n  \"fechaInicio\": \"2025-05-01\",\n  \"fechaFin\": \"2025-06-01\",\n  \"estado\": \"ACTIVA\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/membresias/usuario/1",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"membresias",
+								"usuario",
+								"1"
+							]
+						},
+						"description": "Asigna/crea una membresía para el usuario especificado por ID (ej. 1). Estados posibles: ACTIVA, VENCIDA, CANCELADA."
+					},
+					"response": [
+						{
+							"name": "Ejemplo Membresía Creada",
+							"originalRequest": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"tipo\": \"Mensual VIP\",\n  \"fechaInicio\": \"2025-05-01\",\n  \"fechaFin\": \"2025-06-01\",\n  \"estado\": \"ACTIVA\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/membresias/usuario/1",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"membresias",
+										"usuario",
+										"1"
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"idMembresia\": 1,\n  \"tipo\": \"Mensual VIP\",\n  \"fechaInicio\": \"2025-05-01\",\n  \"fechaFin\": \"2025-06-01\",\n  \"estado\": \"ACTIVA\",\n  \"usuario\": {\n    \"idUsuario\": 1,\n    \"nombre\": \"Juan Pérez\",\n    \"email\": \"juan.perez@example.com\",\n    \"rol\": \"MIEMBRO\"\n  }\n}"
+						}
+					]
+				},
+				{
+					"name": "Listar Membresías por Usuario",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/membresias/usuario/1",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"membresias",
+								"usuario",
+								"1"
+							]
+						},
+						"description": "Obtiene las membresías asociadas al ID de usuario."
+					},
+					"response": []
+				},
+				{
+					"name": "Registrar Pago de Membresía",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"monto\": 49.99,\n  \"fecha\": \"2025-05-01T10:30:00\",\n  \"metodoPago\": \"TARJETA\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/membresias/1/pagos",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"membresias",
+								"1",
+								"pagos"
+							]
+						},
+						"description": "Registra un pago realizado para una membresía (métodos válidos: EFECTIVO, TARJETA, TRANSFERENCIA)."
+					},
+					"response": [
+						{
+							"name": "Ejemplo Pago Registrado",
+							"originalRequest": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"monto\": 49.99,\n  \"fecha\": \"2025-05-01T10:30:00\",\n  \"metodoPago\": \"TARJETA\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/membresias/1/pagos",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"membresias",
+										"1",
+										"pagos"
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"idPago\": 1,\n  \"monto\": 49.99,\n  \"fecha\": \"2025-05-01T10:30:00\",\n  \"metodoPago\": \"TARJETA\",\n  \"membresia\": {\n    \"idMembresia\": 1,\n    \"tipo\": \"Mensual VIP\",\n    \"fechaInicio\": \"2025-05-01\",\n    \"fechaFin\": \"2025-06-01\",\n    \"estado\": \"ACTIVA\"\n  }\n}"
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "Clases Grupales y Asistencia",
+			"item": [
+				{
+					"name": "Crear Clase Grupal",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"nombre\": \"Spinning de Alta Intensidad\",\n  \"horario\": \"2025-05-20T18:00:00\",\n  \"cupoMaximo\": 20\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/clases",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"clases"
+							]
+						},
+						"description": "Crea una nueva clase grupal con cupo máximo predeterminado o personalizado."
+					},
+					"response": [
+						{
+							"name": "Ejemplo Clase Grupal Creada",
+							"originalRequest": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"nombre\": \"Spinning de Alta Intensidad\",\n  \"horario\": \"2025-05-20T18:00:00\",\n  \"cupoMaximo\": 20\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/clases",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"clases"
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"idClase\": 1,\n  \"nombre\": \"Spinning de Alta Intensidad\",\n  \"horario\": \"2025-05-20T18:00:00\",\n  \"cupoMaximo\": 20,\n  \"usuarios\": []\n}"
+						}
+					]
+				},
+				{
+					"name": "Listar Clases Grupales",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/clases",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"clases"
+							]
+						},
+						"description": "Obtiene la lista de todas las clases grupales programadas."
+					},
+					"response": []
+				},
+				{
+					"name": "Reservar Clase Grupal",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/clases/1/reservar/1",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"clases",
+								"1",
+								"reservar",
+								"1"
+							]
+						},
+						"description": "Reserva un cupo en la clase grupal para el usuario especificado (/api/clases/{claseId}/reservar/{usuarioId})."
+					},
+					"response": []
+				},
+				{
+					"name": "Registrar Asistencia con Código QR",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/clases/1/asistencia/1?codigoQR=QR-SPINNING-2025",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"clases",
+								"1",
+								"asistencia",
+								"1"
+							],
+							"query": [
+								{
+									"key": "codigoQR",
+									"value": "QR-SPINNING-2025",
+									"description": "Código QR escaneado"
+								}
+							]
+						},
+						"description": "Registra la asistencia del usuario a una clase valida la membresía activa y almacena el registro."
+					},
+					"response": [
+						{
+							"name": "Ejemplo Asistencia Registrada",
+							"originalRequest": {
+								"method": "POST",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/clases/1/asistencia/1?codigoQR=QR-SPINNING-2025",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"clases",
+										"1",
+										"asistencia",
+										"1"
+									],
+									"query": [
+										{
+											"key": "codigoQR",
+											"value": "QR-SPINNING-2025"
+										}
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"idAsistencia\": 1,\n  \"fecha\": \"2025-05-20T18:05:00\",\n  \"codigoQR\": \"QR-SPINNING-2025\",\n  \"usuario\": {\n    \"idUsuario\": 1,\n    \"nombre\": \"Juan Pérez\",\n    \"email\": \"juan.perez@example.com\",\n    \"rol\": \"MIEMBRO\"\n  },\n  \"clase\": {\n    \"idClase\": 1,\n    \"nombre\": \"Spinning de Alta Intensidad\",\n    \"horario\": \"2025-05-20T18:00:00\",\n    \"cupoMaximo\": 20\n  }\n}"
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "Rutinas",
+			"item": [
+				{
+					"name": "Crear Rutina (Entrenador a Miembro)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"nombre\": \"Hipertrofia Pecho y Tríceps\",\n  \"nivel\": \"Intermedio\",\n  \"duracion\": 60\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/rutinas/entrenador/2/miembro/1",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"rutinas",
+								"entrenador",
+								"2",
+								"miembro",
+								"1"
+							]
+						},
+						"description": "Asigna una rutina creada por el entrenador (ej. ID 2) para el miembro (ej. ID 1)."
+					},
+					"response": [
+						{
+							"name": "Ejemplo Rutina Creada",
+							"originalRequest": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"nombre\": \"Hipertrofia Pecho y Tríceps\",\n  \"nivel\": \"Intermedio\",\n  \"duracion\": 60\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/rutinas/entrenador/2/miembro/1",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"rutinas",
+										"entrenador",
+										"2",
+										"miembro",
+										"1"
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"idRutina\": 1,\n  \"nombre\": \"Hipertrofia Pecho y Tríceps\",\n  \"nivel\": \"Intermedio\",\n  \"duracion\": 60,\n  \"entrenador\": {\n    \"idUsuario\": 2,\n    \"nombre\": \"Carlos Entrenador\",\n    \"email\": \"carlos.coach@example.com\",\n    \"rol\": \"ENTRENADOR\"\n  },\n  \"miembro\": {\n    \"idUsuario\": 1,\n    \"nombre\": \"Juan Pérez\",\n    \"email\": \"juan.perez@example.com\",\n    \"rol\": \"MIEMBRO\"\n  }\n}"
+						}
+					]
+				},
+				{
+					"name": "Listar Rutinas de un Miembro",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/rutinas/miembro/1",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"rutinas",
+								"miembro",
+								"1"
+							]
+						},
+						"description": "Obtiene todas las rutinas asignadas al miembro indicado por ID."
+					},
+					"response": []
+				}
+			]
+		}
+	]
+}

@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full bg-slate-950 text-slate-100">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GymLife - Software de Gestion de Gimnasios</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- QR Code Library CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Plus Jakarta Sans', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              50: '#ecfdf5',
+              100: '#d1fae5',
+              500: '#10b981',
+              600: '#059669',
+              700: '#047857',
+              accent: '#06b6d4'
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    body { font-family: 'Plus Jakarta Sans', sans-serif; }
+    .glass-card {
+      background: rgba(30, 41, 59, 0.7);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .glass-card-hover:hover {
+      background: rgba(30, 41, 59, 0.9);
+      border-color: rgba(16, 185, 129, 0.3);
+      transform: translateY(-2px);
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 9999px;
+    }
+  </style>
+</head>
+<body class="h-full antialiased selection:bg-brand-500 selection:text-white flex flex-col md:flex-row overflow-hidden">
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container" class="fixed top-5 right-5 z-50 flex flex-col space-y-3 max-w-sm w-full pointer-events-none"></div>
+
+  <!-- AUTH SCREEN (Login & Register Overlay) -->
+  <div id="auth-screen" class="fixed inset-0 z-40 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4">
+    <div class="glass-card w-full max-w-md p-8 rounded-3xl shadow-2xl border border-slate-800 relative overflow-hidden">
+      <div class="absolute -top-12 -right-12 w-32 h-32 bg-brand-500/20 rounded-full blur-2xl"></div>
+      <div class="absolute -bottom-12 -left-12 w-32 h-32 bg-brand-accent/20 rounded-full blur-2xl"></div>
+
+      <!-- Header Logo -->
+      <div class="text-center mb-8">
+        <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-tr from-brand-600 to-brand-accent text-white shadow-lg shadow-brand-500/30 mb-3">
+          <i class="fa-solid fa-dumbbell text-3xl"></i>
+        </div>
+        <h1 class="text-2xl font-extrabold tracking-tight bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">GymLife Portal</h1>
+        <p class="text-slate-400 text-xs mt-1">Plataforma Inteligente de Gestion Fitness</p>
+      </div>
+
+      <!-- Auth Tabs -->
+      <div class="flex p-1 bg-slate-900/80 rounded-xl mb-6 border border-slate-800">
+        <button id="tab-login" onclick="switchAuthTab('login')" class="flex-1 py-2 text-xs font-semibold rounded-lg bg-brand-600 text-white transition-all shadow">Iniciar Sesion</button>
+        <button id="tab-register" onclick="switchAuthTab('register')" class="flex-1 py-2 text-xs font-semibold rounded-lg text-slate-400 hover:text-white transition-all">Registrarse</button>
+      </div>
+
+      <!-- LOGIN FORM -->
+      <form id="login-form" onsubmit="handleLogin(event)" class="space-y-4">
+        <div>
+          <label class="block text-xs font-medium text-slate-300 mb-1">Correo Electronico</label>
+          <div class="relative">
+            <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-500"><i class="fa-regular fa-envelope"></i></span>
+            <input type="email" id="login-email" required class="w-full pl-10 pr-4 py-2.5 bg-slate-900/90 border border-slate-800 rounded-xl text-sm focus:outline-none focus:border-brand-500 transition-colors text-white placeholder-slate-500" placeholder="usuario@gymlife.com">
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-300 mb-1">Contrasena</label>
+          <div class="relative">
+            <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-500"><i class="fa-solid fa-lock"></i></span>
+            <input type="password" id="login-password" required class="w-full pl-10 pr-4 py-2.5 bg-slate-900/90 border border-slate-800 rounded-xl text-sm focus:outline-none focus:border-brand-500 transition-colors text-white placeholder-slate-500" placeholder="••••••••">
+          </div>
+        </div>
+        <button type="submit" class="w-full py-3 bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-500 hover:to-brand-600 text-white font-bold text-sm rounded-xl shadow-lg shadow-brand-500/25 transition-all transform active:scale-95 flex items-center justify-center gap-2">
+          <span>Acceder al Portal</span>
+          <i class="fa-solid fa-arrow-right text-xs"></i>
+        </button>
+      </form>
+
+      <!-- REGISTER FORM -->
+      <form id="register-form" onsubmit="handleRegister(event)" class="space-y-4 hidden">
+        <div>
+          <label class="block text-xs font-medium text-slate-300 mb-1">Nombre Completo</label>
+          <input type="text" id="reg-nombre" required class="w-full px-4 py-2.5 bg-slate-900/90 border border-slate-800 rounded-xl text-sm focus:outline-none focus:border-brand-500 transition-colors text-white" placeholder="Ej: Maria Rodriguez">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-300 mb-1">Correo Electronico</label>
+          <input type="email" id="reg-email" required class="w-full px-4 py-2.5 bg-slate-900/90 border border-slate-800 rounded-xl text-sm focus:outline-none focus:border-brand-500 transition-colors text-white" placeholder="maria@example.com">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-300 mb-1">Contrasena</label>
+          <input type="password" id="reg-password" required class="w-full px-4 py-2.5 bg-slate-900/90 border border-slate-800 rounded-xl text-sm focus:outline-none focus:border-brand-500 transition-colors text-white" placeholder="••••••••">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-300 mb-1">Rol en el Gimnasio</label>
+          <select id="reg-rol" class="w-full px-4 py-2.5 bg-slate-900/90 border border-slate-800 rounded-xl text-sm focus:outline-none focus:border-brand-500 transition-colors text-white">
+            <option value="MIEMBRO">Miembro / Atleta</option>
+            <option value="ENTRENADOR">Entrenador Personal</option>
+            <option value="ADMINISTRADOR">Administrador / Staff</option>
+          </select>
+        </div>
+        <button type="submit" class="w-full py-3 bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-500 hover:to-brand-600 text-white font-bold text-sm rounded-xl shadow-lg shadow-brand-500/25 transition-all transform active:scale-95">
+          Crear Cuenta
+        </button>
+      </form>
+
+      <div class="mt-6 pt-4 border-t border-slate-800/80 text-center">
+        <p class="text-xs text-slate-400">Demo Rapida con Cuentas de Prueba:</p>
+        <div class="flex justify-center gap-2 mt-2">
+          <button onclick="fillDemoUser('MIEMBRO')" class="px-2.5 py-1 text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg border border-slate-700">Miembro</button>
+          <button onclick="fillDemoUser('ENTRENADOR')" class="px-2.5 py-1 text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg border border-slate-700">Entrenador</button>
+          <button onclick="fillDemoUser('ADMINISTRADOR')" class="px-2.5 py-1 text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg border border-slate-700">Admin</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN APP WRAPPER -->
+  <!-- Sidebar for Desktop -->
+  <aside class="hidden md:flex flex-col w-64 bg-slate-900 border-r border-slate-800 shrink-0 justify-between p-4">
+    <div>
+      <!-- Brand Logo -->
+      <div class="flex items-center gap-3 px-3 py-4 mb-6 border-b border-slate-800/80">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-brand-accent flex items-center justify-center text-white shadow-md shadow-brand-500/20">
+          <i class="fa-solid fa-dumbbell text-xl"></i>
+        </div>
+        <div>
+          <h2 class="font-bold text-base tracking-tight text-white leading-tight">GymLife</h2>
+          <span class="text-[10px] font-semibold text-brand-500 tracking-wider uppercase">Fitness Platform</span>
+        </div>
+      </div>
+
+      <!-- Navigation Links -->
+      <nav class="space-y-1" id="desktop-nav">
+        <!-- Dynamic Nav Links Inserted by JS based on user role -->
+      </nav>
+    </div>
+
+    <!-- Active User Profile Card at bottom -->
+    <div class="glass-card p-3 rounded-2xl border border-slate-800 flex items-center justify-between">
+      <div class="flex items-center gap-3 overflow-hidden">
+        <div class="w-9 h-9 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-brand-500 font-bold shrink-0" id="user-avatar-initials">
+          GP
+        </div>
+        <div class="truncate">
+          <p class="text-xs font-bold text-white truncate" id="user-display-name">Cargando...</p>
+          <span class="text-[10px] text-brand-500 font-semibold px-1.5 py-0.5 bg-brand-500/10 rounded-full border border-brand-500/20 uppercase" id="user-display-role">MIEMBRO</span>
+        </div>
+      </div>
+      <button onclick="logout()" title="Cerrar Sesion" class="text-slate-400 hover:text-red-400 p-1.5 rounded-lg hover:bg-slate-800 transition-colors">
+        <i class="fa-solid fa-right-from-bracket"></i>
+      </button>
+    </div>
+  </aside>
+
+  <!-- MAIN CONTENT AREA -->
+  <main class="flex-1 flex flex-col h-full bg-slate-950 overflow-hidden relative">
+    
+    <!-- Top Bar Header -->
+    <header class="h-16 bg-slate-900/60 backdrop-blur-md border-b border-slate-800/80 px-6 flex items-center justify-between shrink-0">
+      <div class="flex items-center gap-3">
+        <h1 class="text-lg font-bold text-white" id="section-title">Dashboard</h1>
+        <span id="connection-badge" class="px-2.5 py-1 text-[11px] font-medium rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1.5">
+          <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          <span>API Spring Boot En Linea</span>
+        </span>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <!-- Quick Action Button -->
+        <button onclick="openQrPassModal()" class="px-3.5 py-1.5 bg-brand-600/20 hover:bg-brand-600/30 text-brand-400 border border-brand-500/30 rounded-xl text-xs font-bold flex items-center gap-2 transition-all">
+          <i class="fa-solid fa-qrcode text-sm"></i>
+          <span class="hidden sm:inline">Pase QR Entrada</span>
+        </button>
+
+        <!-- User avatar on mobile -->
+        <div class="md:hidden flex items-center gap-2">
+          <button onclick="logout()" class="text-slate-400 hover:text-red-400 p-2">
+            <i class="fa-solid fa-right-from-bracket text-lg"></i>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- DYNAMIC SECTION CONTENT CONTAINER -->
+    <div class="flex-1 overflow-y-auto p-4 sm:p-6 custom-scrollbar space-y-6" id="main-content">
+      <!-- Sections rendered dynamically by app.js -->
+    </div>
+
+    <!-- Mobile Bottom Navigation Bar -->
+    <nav class="md:hidden h-16 bg-slate-900 border-t border-slate-800 px-2 flex items-center justify-around shrink-0" id="mobile-nav">
+      <!-- Dynamic Mobile Nav Links -->
+    </nav>
+  </main>
+
+  <!-- MODAL: PASE QR ACCESO -->
+  <div id="qr-modal" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+    <div class="glass-card w-full max-w-sm p-6 rounded-3xl border border-slate-800 text-center relative">
+      <button onclick="closeQrPassModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white p-1">
+        <i class="fa-solid fa-xmark text-lg"></i>
+      </button>
+
+      <div class="w-12 h-12 rounded-2xl bg-brand-500/10 border border-brand-500/20 text-brand-500 flex items-center justify-center mx-auto mb-3">
+        <i class="fa-solid fa-qrcode text-2xl"></i>
+      </div>
+
+      <h3 class="text-lg font-bold text-white">Tu Codigo QR de Acceso</h3>
+      <p class="text-xs text-slate-400 mt-1 mb-4">Escanea este codigo en el torniquete del gimnasio o recepcion de clases.</p>
+
+      <div class="bg-white p-4 rounded-2xl inline-block shadow-xl mb-4">
+        <div id="qrcode-canvas" class="flex justify-center"></div>
+      </div>
+
+      <p class="text-xs font-mono text-brand-400 bg-brand-500/10 py-1.5 px-3 rounded-lg inline-block border border-brand-500/20" id="qr-code-text">GYMLIFE-USER-1</p>
+
+      <div class="mt-4 pt-3 border-t border-slate-800/80 flex justify-center">
+        <button onclick="closeQrPassModal()" class="w-full py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl transition-colors">
+          Cerrar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: REGISTRAR PAGO -->
+  <div id="modal-payment" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+    <div class="glass-card w-full max-w-md p-6 rounded-3xl border border-slate-800 relative">
+      <button onclick="closeModal('modal-payment')" class="absolute top-4 right-4 text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+      <h3 class="text-lg font-bold text-white mb-4"><i class="fa-solid fa-credit-card text-brand-500 mr-2"></i>Registrar Pago de Membresia</h3>
+      <form onsubmit="submitPaymentForm(event)" class="space-y-4">
+        <div>
+          <label class="block text-xs font-medium text-slate-300 mb-1">ID de Membresia</label>
+          <input type="number" id="pay-membership-id" required class="w-full px-4 py-2 bg-slate-900 border border-slate-800 rounded-xl text-sm text-white" placeholder="Ej: 1">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-300 mb-1">Monto ($)</label>
+          <input type="number" step="0.01" id="pay-amount" required value="49.99" class="w-full px-4 py-2 bg-slate-900 border border-slate-800 rounded-xl text-sm text-white">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-300 mb-1">Metodo de Pago</label>
+          <select id="pay-method" class="w-full px-4 py-2 bg-slate-900 border border-slate-800 rounded-xl text-sm text-white">
+            <option value="TARJETA">Tarjeta de Credito / Debito</option>
+            <option value="EFECTIVO">Efectivo en Recepcion</option>
+            <option value="TRANSFERENCIA">Transferencia Bancaria</option>
+          </select>
+        </div>
+        <button type="submit" class="w-full py-2.5 bg-brand-600 hover:bg-brand-500 text-white font-bold text-sm rounded-xl transition-all">Procesar Pago</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: CREAR CLASE -->
+  <div id="modal-class" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+    <div class="glass-card w-full max-w-md p-6 rounded-3xl border border-slate-800 relative">
+      <button onclick="closeModal('modal-class')" class="absolute top-4 right-4 text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+      <h3 class="text-lg font-bold text-white mb-4"><i class="fa-solid fa-calendar-plus text-brand-500 mr-2"></i>Crear Clase Grupal</h3>
+      <form onsubmit="submitClassForm(event)" class="space-y-4">
+        <div>
+          <label class="block text-xs font-medium text-slate-300 mb-1">Nombre de la Clase</label>
+          <input type="text" id="class-nombre" required class="w-full px-4 py-2 bg-slate-900 border border-slate-800 rounded-xl text-sm text-white" placeholder="Ej: Crossfit Funcional">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-300 mb-1">Fecha y Hora</label>
+          <input type="datetime-local" id="class-horario" required class="w-full px-4 py-2 bg-slate-900 border border-slate-800 rounded-xl text-sm text-white">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-300 mb-1">Cupo Maximo</label>
+          <input type="number" id="class-cupo" value="15" required class="w-full px-4 py-2 bg-slate-900 border border-slate-800 rounded-xl text-sm text-white">
+        </div>
+        <button type="submit" class="w-full py-2.5 bg-brand-600 hover:bg-brand-500 text-white font-bold text-sm rounded-xl transition-all">Guardar Clase</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: CREAR RUTINA -->
+  <div id="modal-routine" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+    <div class="glass-card w-full max-w-md p-6 rounded-3xl border border-slate-800 relative">
+      <button onclick="closeModal('modal-routine')" class="absolute top-4 right-4 text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+      <h3 class="text-lg font-bold text-white mb-4"><i class="fa-solid fa-dumbbell text-brand-500 mr-2"></i>Asignar Rutina Personalizada</h3>
+      <form onsubmit="submitRoutineForm(event)" class="space-y-4">
+        <div>
+          <label class="block text-xs font-medium text-slate-300 mb-1">ID del Miembro / Usuario</label>
+          <input type="number" id="routine-miembro-id" required class="w-full px-4 py-2 bg-slate-900 border border-slate-800 rounded-xl text-sm text-white" placeholder="Ej: 1">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-300 mb-1">Nombre de la Rutina</label>
+          <input type="text" id="routine-nombre" required class="w-full px-4 py-2 bg-slate-900 border border-slate-800 rounded-xl text-sm text-white" placeholder="Ej: Hipertrofia Espalda y Biceps">
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1">Nivel</label>
+            <select id="routine-nivel" class="w-full px-4 py-2 bg-slate-900 border border-slate-800 rounded-xl text-sm text-white">
+              <option value="Principiante">Principiante</option>
+              <option value="Intermedio">Intermedio</option>
+              <option value="Avanzado">Avanzado</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1">Duracion (min)</label>
+            <input type="number" id="routine-duracion" value="50" required class="w-full px-4 py-2 bg-slate-900 border border-slate-800 rounded-xl text-sm text-white">
+          </div>
+        </div>
+        <button type="submit" class="w-full py-2.5 bg-brand-600 hover:bg-brand-500 text-white font-bold text-sm rounded-xl transition-all">Asignar Rutina</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- JavaScript Modules -->
+  <script src="js/api.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
