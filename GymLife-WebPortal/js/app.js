@@ -144,6 +144,10 @@ async function renderView(tab) {
 async function renderDashboardView(container) {
   const classes = await GymLifeAPI.getClasses();
   const userRoutines = currentUser ? await GymLifeAPI.getRoutinesByMember(currentUser.usuarioId) : [];
+  const memberships = currentUser ? await GymLifeAPI.getMembershipsByUser(currentUser.usuarioId) : [];
+  const attendances = currentUser ? await GymLifeAPI.getAttendancesByUser(currentUser.usuarioId) : [];
+
+  const activeMembership = memberships.find(m => m.estado === 'ACTIVA') || memberships[0];
 
   container.innerHTML = `
     <!-- Top Stats Cards -->
@@ -154,8 +158,10 @@ async function renderDashboardView(container) {
         </div>
         <div>
           <p class="text-xs text-slate-400 font-medium">Membresia Actual</p>
-          <h4 class="text-lg font-bold text-white">ACTIVA (VIP)</h4>
-          <span class="text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md font-semibold">Al dia</span>
+          <h4 class="text-lg font-bold text-white truncate max-w-[130px]">${activeMembership ? activeMembership.tipo : 'Sin Membresia'}</h4>
+          <span class="text-[10px] ${activeMembership && activeMembership.estado === 'ACTIVA' ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' : 'text-amber-400 bg-amber-500/10 border-amber-500/20'} px-2 py-0.5 rounded-md font-semibold border">
+            ${activeMembership ? activeMembership.estado : 'INACTIVA'}
+          </span>
         </div>
       </div>
 
@@ -165,8 +171,8 @@ async function renderDashboardView(container) {
         </div>
         <div>
           <p class="text-xs text-slate-400 font-medium">Rutinas Asignadas</p>
-          <h4 class="text-lg font-bold text-white">${userRoutines.length} Programas</h4>
-          <span class="text-[10px] text-slate-400">Ultima act: hoy</span>
+          <h4 class="text-lg font-bold text-white">${userRoutines.length} ${userRoutines.length === 1 ? 'Programa' : 'Programas'}</h4>
+          <span class="text-[10px] text-slate-400">Actualizado en vivo</span>
         </div>
       </div>
 
@@ -176,7 +182,7 @@ async function renderDashboardView(container) {
         </div>
         <div>
           <p class="text-xs text-slate-400 font-medium">Clases Disponibles</p>
-          <h4 class="text-lg font-bold text-white">${classes.length} Horarios</h4>
+          <h4 class="text-lg font-bold text-white">${classes.length} ${classes.length === 1 ? 'Horario' : 'Horarios'}</h4>
           <span class="text-[10px] text-purple-400 font-semibold">Reserva directa</span>
         </div>
       </div>
@@ -186,9 +192,11 @@ async function renderDashboardView(container) {
           <i class="fa-solid fa-award"></i>
         </div>
         <div>
-          <p class="text-xs text-slate-400 font-medium">Asistencias Mes</p>
-          <h4 class="text-lg font-bold text-white">14 Dias</h4>
-          <span class="text-[10px] text-amber-400 font-semibold">Racha +4 dias</span>
+          <p class="text-xs text-slate-400 font-medium">Asistencias por QR</p>
+          <h4 class="text-lg font-bold text-white">${attendances.length} ${attendances.length === 1 ? 'Registro' : 'Registros'}</h4>
+          <span class="text-[10px] ${attendances.length > 0 ? 'text-emerald-400 font-semibold' : 'text-slate-400'}">
+            ${attendances.length > 0 ? 'Validado con exito' : 'Sin ingresos registrados'}
+          </span>
         </div>
       </div>
     </div>

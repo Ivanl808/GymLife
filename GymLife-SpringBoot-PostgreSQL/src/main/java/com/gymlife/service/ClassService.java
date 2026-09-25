@@ -34,6 +34,10 @@ public class ClassService {
         return classes.findAll();
     }
 
+    public List<Attendance> asistenciasPorUsuario(Long usuarioId) {
+        return attendance.findByUsuarioIdUsuario(usuarioId);
+    }
+
     public GroupClass reservar(Long claseId, Long usuarioId) {
         GroupClass c = classes.findById(claseId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Clase no encontrada"));

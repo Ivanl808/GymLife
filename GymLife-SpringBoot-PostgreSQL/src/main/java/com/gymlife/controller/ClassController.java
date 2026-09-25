@@ -40,4 +40,9 @@ public class ClassController {
         return ResponseEntity.ok(
                 service.registrarAsistencia(claseId, usuarioId, codigoQR));
     }
+
+    @GetMapping("/asistencias/usuario/{usuarioId}")
+    public ResponseEntity<List<Attendance>> listarAsistencias(@PathVariable Long usuarioId) {
+        return ResponseEntity.ok(service.asistenciasPorUsuario(usuarioId));
+    }
 }

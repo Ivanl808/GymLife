@@ -129,6 +129,10 @@ class GymLifeAPI {
 
     if (endpoint.startsWith('/rutinas/miembro/')) return MOCK_DATA.routines;
 
+    if (endpoint.startsWith('/clases/asistencias/usuario/')) {
+      return [];
+    }
+
     if (endpoint.includes('/rutinas/entrenador/')) {
       const newRoutine = { idRutina: MOCK_DATA.routines.length + 1, ...body };
       MOCK_DATA.routines.push(newRoutine);
@@ -200,6 +204,10 @@ class GymLifeAPI {
 
   static getRoutinesByMember(miembroId) {
     return this.request(`/rutinas/miembro/${miembroId}`);
+  }
+
+  static getAttendancesByUser(usuarioId) {
+    return this.request(`/clases/asistencias/usuario/${usuarioId}`);
   }
 
   static createRoutine(entrenadorId, miembroId, routineData) {
