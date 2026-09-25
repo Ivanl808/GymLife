@@ -64,7 +64,7 @@ class GymLifeAPI {
     if (!badge) return;
     if (online) {
       badge.className = 'px-2.5 py-1 text-[11px] font-medium rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1.5';
-      badge.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span><span>API Spring Boot En Linea</span>';
+      badge.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span><span>Gestor Gym en linea</span>';
     } else {
       badge.className = 'px-2.5 py-1 text-[11px] font-medium rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 flex items-center gap-1.5';
       badge.innerHTML = '<span class="w-2 h-2 rounded-full bg-amber-500"></span><span>Modo Demo Interactivo</span>';
