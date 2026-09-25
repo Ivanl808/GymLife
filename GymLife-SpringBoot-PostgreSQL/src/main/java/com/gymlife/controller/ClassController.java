@@ -4,6 +4,7 @@ import com.gymlife.model.*;
 import com.gymlife.service.ClassService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import java.util.List;
 
 @RestController
 @CrossOrigin(origins = "*")
