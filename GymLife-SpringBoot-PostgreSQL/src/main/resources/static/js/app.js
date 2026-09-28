@@ -73,14 +73,16 @@ function renderNavigation() {
     navItems = [
       { id: 'dashboard', label: 'Dashboard Admin', icon: 'fa-chart-pie' },
       { id: 'usuarios', label: 'Usuarios', icon: 'fa-users' },
-      { id: 'clases', label: 'Gestion Clases', icon: 'fa-calendar-plus' },
-      { id: 'membresia', label: 'Membresias & Pagos', icon: 'fa-credit-card' }
+      { id: 'clases', label: 'Gestión Clases', icon: 'fa-calendar-plus' },
+      { id: 'rutinas', label: 'Rutinas', icon: 'fa-dumbbell' },
+      { id: 'membresia', label: 'Membresías & Pagos', icon: 'fa-credit-card' }
     ];
   } else if (currentUser.rol === 'ENTRENADOR') {
     navItems = [
       { id: 'dashboard', label: 'Resumen Coach', icon: 'fa-user-nurse' },
-      { id: 'rutinas', label: 'Asignar Rutinas', icon: 'fa-file-signature' },
-      { id: 'clases', label: 'Clases Dirigidas', icon: 'fa-calendar-days' }
+      { id: 'rutinas', label: 'Rutinas', icon: 'fa-dumbbell' },
+      { id: 'clases', label: 'Clases Dirigidas', icon: 'fa-calendar-days' },
+      { id: 'membresia', label: 'Membresía', icon: 'fa-id-card' }
     ];
   }
 
@@ -166,9 +168,9 @@ async function renderDashboardView(container) {
   const activeMembership = memberships.find(m => m.estado === 'ACTIVA') || memberships[0];
 
   container.innerHTML = `
-    <!-- Top Stats Cards -->
+    <!-- Top Stats Cards Interactivas -->
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-      <div class="glass-card p-5 rounded-2xl border border-slate-800 flex items-center gap-4">
+      <div onclick="switchTab('membresia')" class="glass-card glass-card-hover p-5 rounded-2xl border border-slate-800 flex items-center gap-4 cursor-pointer transition-all">
         <div class="w-12 h-12 rounded-xl bg-brand-500/10 border border-brand-500/20 text-brand-500 flex items-center justify-center text-xl shrink-0">
           <i class="fa-solid fa-fire"></i>
         </div>
@@ -183,29 +185,29 @@ async function renderDashboardView(container) {
         </div>
       </div>
 
-      <div class="glass-card p-5 rounded-2xl border border-slate-800 flex items-center gap-4">
+      <div onclick="switchTab('rutinas')" class="glass-card glass-card-hover p-5 rounded-2xl border border-slate-800 flex items-center gap-4 cursor-pointer transition-all">
         <div class="w-12 h-12 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 flex items-center justify-center text-xl shrink-0">
           <i class="fa-solid fa-dumbbell"></i>
         </div>
         <div>
           <p class="text-xs text-slate-400 font-medium">Rutinas Asignadas</p>
           <h4 class="text-lg font-bold text-white">${userRoutines.length} ${userRoutines.length === 1 ? 'Programa' : 'Programas'}</h4>
-          <span class="text-[10px] text-slate-400">Actualizado en vivo</span>
+          <span class="text-[10px] text-cyan-400 font-semibold">Ver mis rutinas &rarr;</span>
         </div>
       </div>
 
-      <div class="glass-card p-5 rounded-2xl border border-slate-800 flex items-center gap-4">
+      <div onclick="switchTab('clases')" class="glass-card glass-card-hover p-5 rounded-2xl border border-slate-800 flex items-center gap-4 cursor-pointer transition-all">
         <div class="w-12 h-12 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400 flex items-center justify-center text-xl shrink-0">
           <i class="fa-solid fa-users"></i>
         </div>
         <div>
           <p class="text-xs text-slate-400 font-medium">Clases Disponibles</p>
           <h4 class="text-lg font-bold text-white">${classes.length} ${classes.length === 1 ? 'Horario' : 'Horarios'}</h4>
-          <span class="text-[10px] text-purple-400 font-semibold">Reserva directa</span>
+          <span class="text-[10px] text-purple-400 font-semibold">Reserva directa &rarr;</span>
         </div>
       </div>
 
-      <div class="glass-card p-5 rounded-2xl border border-slate-800 flex items-center gap-4">
+      <div onclick="openQrPassModal()" class="glass-card glass-card-hover p-5 rounded-2xl border border-slate-800 flex items-center gap-4 cursor-pointer transition-all">
         <div class="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center text-xl shrink-0">
           <i class="fa-solid fa-award"></i>
         </div>
@@ -367,28 +369,46 @@ async function renderClassesView(container) {
   `;
 }
 
+let currentRoutineSubTab = 'mis-rutinas';
+
 // 3. ROUTINES VIEW
 async function renderRoutinesView(container) {
   const isCoach = currentUser.rol === 'ENTRENADOR' || currentUser.rol === 'ADMINISTRADOR';
-  const routines = isCoach 
-    ? await GymLifeAPI.getAllRoutines() 
-    : await GymLifeAPI.getRoutinesByMember(currentUser.usuarioId);
+  const myRoutines = await GymLifeAPI.getRoutinesByMember(currentUser.usuarioId);
+  const allRoutines = isCoach ? await GymLifeAPI.getAllRoutines() : [];
+
+  const displayRoutines = (isCoach && currentRoutineSubTab === 'todas') ? allRoutines : myRoutines;
 
   container.innerHTML = `
-    <div class="flex items-center justify-between mb-4">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
       <div>
-        <h2 class="text-xl font-extrabold text-white">${isCoach ? 'Gestión de Rutinas Asignadas' : 'Mis Rutinas de Entrenamiento'}</h2>
-        <p class="text-xs text-slate-400">${isCoach ? 'Diseña y asigna programas de ejercicios personalizados a los socios' : 'Planes estructurados por tu entrenador personal'}</p>
+        <h2 class="text-xl font-extrabold text-white">
+          ${isCoach && currentRoutineSubTab === 'todas' ? 'Gestión Global de Rutinas' : 'Mis Rutinas de Entrenamiento'}
+        </h2>
+        <p class="text-xs text-slate-400">
+          ${isCoach && currentRoutineSubTab === 'todas' ? 'Diseña y administra programas de ejercicios para todos los socios' : 'Planes de ejercicio personalizados asignados por tu entrenador'}
+        </p>
       </div>
-      ${isCoach ? `
-        <button onclick="openAssignRoutineModal()" class="px-4 py-2.5 bg-brand-600 hover:bg-brand-500 text-white font-extrabold text-xs rounded-xl shadow-lg shadow-brand-500/20 flex items-center gap-2 transition-all">
-          <i class="fa-solid fa-plus text-sm"></i> Asignar Rutina a Socio
-        </button>
-      ` : ''}
+
+      <div class="flex flex-wrap items-center gap-2">
+        ${isCoach ? `
+          <div class="flex p-1 bg-slate-900 rounded-xl border border-slate-800">
+            <button onclick="switchRoutineSubTab('mis-rutinas')" class="px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${currentRoutineSubTab === 'mis-rutinas' ? 'bg-brand-600 text-white shadow' : 'text-slate-400 hover:text-white'}">
+              <i class="fa-solid fa-user mr-1"></i> Mis Rutinas (${myRoutines.length})
+            </button>
+            <button onclick="switchRoutineSubTab('todas')" class="px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${currentRoutineSubTab === 'todas' ? 'bg-brand-600 text-white shadow' : 'text-slate-400 hover:text-white'}">
+              <i class="fa-solid fa-list mr-1"></i> Todas las del Gym (${allRoutines.length})
+            </button>
+          </div>
+          <button onclick="openAssignRoutineModal()" class="px-4 py-2.5 bg-brand-600 hover:bg-brand-500 text-white font-extrabold text-xs rounded-xl shadow-lg shadow-brand-500/20 flex items-center gap-2 transition-all">
+            <i class="fa-solid fa-plus text-sm"></i> Asignar Rutina
+          </button>
+        ` : ''}
+      </div>
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-      ${routines.length > 0 ? routines.map(r => `
+      ${displayRoutines.length > 0 ? displayRoutines.map(r => `
         <div class="glass-card p-6 rounded-3xl border border-slate-800 relative flex flex-col justify-between">
           <div>
             <div class="flex items-start justify-between mb-3">
@@ -396,7 +416,7 @@ async function renderRoutinesView(container) {
               <span class="text-xs font-bold text-slate-300"><i class="fa-regular fa-clock text-brand-500 mr-1"></i>${r.duracion || 45} min</span>
             </div>
             <h3 class="text-lg font-bold text-white mb-2">${r.nombre}</h3>
-            ${isCoach && r.miembro ? `
+            ${r.miembro ? `
               <div class="p-2.5 bg-slate-900 rounded-xl border border-slate-800 text-xs text-slate-300 mb-3 flex items-center gap-2">
                 <i class="fa-solid fa-user text-brand-500"></i>
                 <span>Socio Asignado: <strong class="text-white">${r.miembro.nombre}</strong> (${r.miembro.email})</span>
@@ -414,15 +434,24 @@ async function renderRoutinesView(container) {
           <div class="w-16 h-16 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-500 text-2xl mx-auto mb-3">
             <i class="fa-solid fa-dumbbell"></i>
           </div>
-          <h4 class="text-base font-bold text-white mb-1">${isCoach ? 'No se han creado rutinas aún' : 'No tienes rutinas asignadas actualmente'}</h4>
-          <p class="text-xs text-slate-400 max-w-sm mx-auto mb-4">${isCoach ? 'Haz clic en "Asignar Rutina a Socio" para crear el primer plan de ejercicios.' : 'Tu entrenador te asignará un plan de entrenamiento adaptado a tus objetivos.'}</p>
+          <h4 class="text-base font-bold text-white mb-1">
+            ${currentRoutineSubTab === 'mis-rutinas' ? 'No tienes rutinas personales asignadas actualmente' : 'No se han creado rutinas globales aún'}
+          </h4>
+          <p class="text-xs text-slate-400 max-w-sm mx-auto mb-4">
+            ${isCoach ? 'Haz clic en "Asignar Rutina" para diseñar y asignar un plan a ti mismo o a cualquier socio.' : 'Tu entrenador personal te asignará un plan de entrenamiento adaptado a tus objetivos.'}
+          </p>
           ${isCoach ? `
-            <button onclick="openAssignRoutineModal()" class="px-4 py-2 bg-brand-600 text-white font-bold text-xs rounded-xl">Crear Primera Rutina</button>
+            <button onclick="openAssignRoutineModal()" class="px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white font-bold text-xs rounded-xl">Asignar Primera Rutina</button>
           ` : ''}
         </div>
       `}
     </div>
   `;
+}
+
+function switchRoutineSubTab(subTab) {
+  currentRoutineSubTab = subTab;
+  renderView('rutinas');
 }
 
 // Plan catalog global state for checkout
@@ -629,14 +658,18 @@ async function renderUsersView(container) {
                     </span>
                   </td>
                   <td class="p-3">
-                    ${esAdmin 
-                      ? `<span class="font-bold text-purple-300 flex items-center gap-1.5"><i class="fa-solid fa-crown text-purple-400"></i> Staff VIP Ilimitado</span>`
-                      : `<div id="user-plan-title-${u.idUsuario}" class="font-semibold text-slate-300"><i class="fa-solid fa-circle-notch animate-spin text-brand-500 mr-1"></i>Consultando...</div>`}
+                    <div id="user-plan-title-${u.idUsuario}" class="font-semibold text-slate-300">
+                      ${esAdmin 
+                        ? `<span class="font-bold text-purple-300 flex items-center gap-1.5"><i class="fa-solid fa-crown text-purple-400"></i> Staff VIP Ilimitado</span>` 
+                        : `<i class="fa-solid fa-circle-notch animate-spin text-brand-500 mr-1"></i>Consultando...`}
+                    </div>
                   </td>
                   <td class="p-3">
-                    ${esAdmin 
-                      ? `<span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-purple-500/10 text-purple-400 border border-purple-500/20">PERMANENTE</span>`
-                      : `<div id="user-status-time-${u.idUsuario}" class="text-xs">---</div>`}
+                    <div id="user-status-time-${u.idUsuario}" class="text-xs">
+                      ${esAdmin 
+                        ? `<span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-purple-500/10 text-purple-400 border border-purple-500/20">PERMANENTE</span>` 
+                        : `---`}
+                    </div>
                   </td>
                   <td class="p-3 text-right">
                     <div class="flex items-center justify-end gap-2">
@@ -659,67 +692,67 @@ async function renderUsersView(container) {
 
   // Cargar estado de membresías y cálculo exacto de días restantes
   users.forEach(async (u) => {
-    if (u.rol !== 'ADMINISTRADOR' && u.rol !== 'ENTRENADOR') {
-      try {
-        const mList = await GymLifeAPI.getMembershipsByUser(u.idUsuario);
-        const planTitleElem = document.getElementById(`user-plan-title-${u.idUsuario}`);
-        const timeElem = document.getElementById(`user-status-time-${u.idUsuario}`);
+    try {
+      const mList = await GymLifeAPI.getMembershipsByUser(u.idUsuario);
+      const planTitleElem = document.getElementById(`user-plan-title-${u.idUsuario}`);
+      const timeElem = document.getElementById(`user-status-time-${u.idUsuario}`);
 
-        // Seleccionar la membresía activa más reciente (por mayor ID o fecha de inicio)
-        const act = mList
-          .filter(m => m.estado === 'ACTIVA')
-          .sort((a, b) => (b.idMembresia || 0) - (a.idMembresia || 0))[0];
+      // Seleccionar la membresía activa más reciente (por mayor ID o fecha de inicio)
+      const act = mList
+        .filter(m => m.estado === 'ACTIVA')
+        .sort((a, b) => (b.idMembresia || 0) - (a.idMembresia || 0))[0];
+      
+      const esAdmin = u.rol === 'ADMINISTRADOR' || u.rol === 'ENTRENADOR';
+
+      if (act && act.fechaFin) {
+        const hoy = new Date();
+        const fin = new Date(act.fechaFin);
         
-        if (act && act.fechaFin) {
-          const hoy = new Date();
-          const fin = new Date(act.fechaFin);
-          
-          // Calcular días de diferencia
-          const diffTiempo = fin.getTime() - hoy.getTime();
-          const diasRestantes = Math.ceil(diffTiempo / (1000 * 3600 * 24));
+        // Calcular días de diferencia
+        const diffTiempo = fin.getTime() - hoy.getTime();
+        const diasRestantes = Math.ceil(diffTiempo / (1000 * 3600 * 24));
 
-          if (planTitleElem) {
-            planTitleElem.innerHTML = `<span class="font-bold text-white"><i class="fa-solid fa-gem text-emerald-400 mr-1.5"></i>${act.tipo}</span>`;
-          }
+        if (planTitleElem) {
+          planTitleElem.innerHTML = `<span class="font-bold text-white"><i class="fa-solid fa-gem text-emerald-400 mr-1.5"></i>${act.tipo}</span>`;
+        }
 
-          if (timeElem) {
-            if (diasRestantes > 0) {
-              timeElem.innerHTML = `
-                <div class="flex items-center gap-2">
-                  <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">ACTIVO</span>
-                  <span class="font-mono text-emerald-300 font-bold"><i class="fa-regular fa-clock mr-1"></i>${diasRestantes} días restantes</span>
-                </div>
-                <div class="text-[10px] text-slate-500 mt-0.5">Vence el ${act.fechaFin}</div>
-              `;
-            } else if (diasRestantes === 0) {
-              timeElem.innerHTML = `
-                <div class="flex items-center gap-2">
-                  <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase bg-amber-500/10 text-amber-400 border border-amber-500/20">VENCE HOY</span>
-                  <span class="font-mono text-amber-300 font-bold">Último día</span>
-                </div>
-              `;
-            } else {
-              timeElem.innerHTML = `
-                <div class="flex items-center gap-2">
-                  <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase bg-red-500/10 text-red-400 border border-red-500/20">VENCIDO</span>
-                  <span class="text-red-400 font-medium">Caducó hace ${Math.abs(diasRestantes)} días</span>
-                </div>
-              `;
-            }
-          }
-        } else {
-          if (planTitleElem) {
-            planTitleElem.innerHTML = `<span class="text-slate-500 font-medium">Sin Plan Contratado</span>`;
-          }
-          if (timeElem) {
+        if (timeElem) {
+          if (diasRestantes > 0) {
             timeElem.innerHTML = `
-              <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase bg-slate-800 text-slate-400 border border-slate-700">INACTIVO</span>
+              <div class="flex items-center gap-2">
+                <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">ACTIVO</span>
+                <span class="font-mono text-emerald-300 font-bold"><i class="fa-regular fa-clock mr-1"></i>${diasRestantes} días restantes</span>
+              </div>
+              <div class="text-[10px] text-slate-500 mt-0.5">Vence el ${act.fechaFin}</div>
+            `;
+          } else if (diasRestantes === 0) {
+            timeElem.innerHTML = `
+              <div class="flex items-center gap-2">
+                <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase bg-amber-500/10 text-amber-400 border border-amber-500/20">VENCE HOY</span>
+                <span class="font-mono text-amber-300 font-bold">Último día</span>
+              </div>
+            `;
+          } else {
+            timeElem.innerHTML = `
+              <div class="flex items-center gap-2">
+                <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase bg-red-500/10 text-red-400 border border-red-500/20">VENCIDO</span>
+                <span class="text-red-400 font-medium">Caducó hace ${Math.abs(diasRestantes)} días</span>
+              </div>
             `;
           }
         }
-      } catch(e) {
-        console.error('Error consultando membresía:', e);
+      } else if (!esAdmin) {
+        if (planTitleElem) {
+          planTitleElem.innerHTML = `<span class="text-slate-500 font-medium">Sin Plan Contratado</span>`;
+        }
+        if (timeElem) {
+          timeElem.innerHTML = `
+            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase bg-slate-800 text-slate-400 border border-slate-700">INACTIVO</span>
+          `;
+        }
       }
+    } catch(e) {
+      console.error('Error consultando membresía:', e);
     }
   });
 }
