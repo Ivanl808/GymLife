@@ -4,6 +4,7 @@ import com.gymlife.model.Routine;
 import com.gymlife.model.User;
 import com.gymlife.repository.RoutineRepository;
 import com.gymlife.repository.UserRepository;
+import com.gymlife.service.EmailService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -15,11 +16,19 @@ import org.springframework.web.server.ResponseStatusException;
 public class RoutineController {
     private final RoutineRepository routines;
     private final UserRepository users;
+    private final EmailService emailService;
 
     public RoutineController(RoutineRepository routines,
-                             UserRepository users) {
+                             UserRepository users,
+                             EmailService emailService) {
         this.routines = routines;
         this.users = users;
+        this.emailService = emailService;
+    }
+
+    @GetMapping
+    public ResponseEntity<?> listarTodas() {
+        return ResponseEntity.ok(routines.findAll());
     }
 
     @PostMapping("/entrenador/{entrenadorId}/miembro/{miembroId}")
@@ -36,7 +45,23 @@ public class RoutineController {
         routine.setEntrenador(entrenador);
         routine.setMiembro(miembro);
 
-        return ResponseEntity.ok(routines.save(routine));
+        Routine savedRoutine = routines.save(routine);
+
+        // Notificar por correo al Socio
+        try {
+            emailService.enviarCorreoRutinaAsignada(
+                miembro.getEmail(),
+                miembro.getNombre(),
+                savedRoutine.getNombre(),
+                savedRoutine.getNivel(),
+                savedRoutine.getDuracion(),
+                entrenador.getNombre()
+            );
+        } catch (Exception e) {
+            System.err.println("Error enviando correo de rutina: " + e.getMessage());
+        }
+
+        return ResponseEntity.ok(savedRoutine);
     }
 
     @GetMapping("/miembro/{miembroId}")

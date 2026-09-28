@@ -2,9 +2,7 @@
  * GymLife API Client with strict Auth & Fallback support
  */
 // Detect base API URL automatically (supports standalone local file, embedded Spring Boot, or Tomcat context)
-const BASE_URL = window.location.origin.startsWith('file:') 
-  ? 'http://localhost:8080/api'
-  : (window.location.pathname.includes('/gymlife') ? '/gymlife/api' : '/api');
+const BASE_URL = '/api';
 
 // Mock data strictly used ONLY if backend server is unreachable
 const MOCK_DATA = {
@@ -33,6 +31,7 @@ class GymLifeAPI {
     const headers = { 'Content-Type': 'application/json', ...options.headers };
 
     try {
+      console.log(`[GymLife API] Enviando petición HTTP a: ${url}`, options);
       const response = await fetch(url, { ...options, headers });
       
       // Servidor respondió (Backend En Línea)
@@ -41,20 +40,13 @@ class GymLifeAPI {
       if (!response.ok) {
         // Extraer mensaje de error devuelto por Spring Boot
         const errorData = await response.json().catch(() => ({}));
-        const message = errorData.message || errorData.error || errorData.mensaje || 'Credenciales o datos incorrectos';
+        const message = errorData.mensaje || errorData.message || errorData.reason || errorData.error || 'Credenciales o datos incorrectos';
         throw new Error(message);
       }
 
       return await response.json();
     } catch (error) {
-      // Si la respuesta falló por un error de red (Backend Apagado)
-      if (error.name === 'TypeError' && error.message.includes('fetch')) {
-        console.warn(`[GymLife API] Backend no disponible. Usando modo Demo para: ${endpoint}`);
-        GymLifeAPI.updateBadge(false);
-        return GymLifeAPI.fallbackHandler(endpoint, options);
-      }
-      
-      // Si el backend SI respondió pero con un error HTTP (ej. 400, 401, 500 por credenciales falsas)
+      console.error(`[GymLife API Error] Fallo en la petición a: ${url}`, error);
       throw error;
     }
   }
@@ -119,6 +111,15 @@ class GymLifeAPI {
       return MOCK_DATA.classes;
     }
 
+    if (endpoint === '/usuarios/config/info') {
+      return { baseUrl: window.location.origin };
+    }
+
+    if (endpoint.includes('/regenerar-qr')) {
+      const newUUID = 'pass-' + Math.random().toString(36).substring(2, 11) + '-' + Date.now();
+      return { mensaje: 'Nuevo código QR generado', nuevoQrToken: newUUID };
+    }
+
     if (endpoint.includes('/reservar/')) {
       return { mensaje: 'Reserva registrada con éxito' };
     }
@@ -159,6 +160,16 @@ class GymLifeAPI {
 
   static getUsers() {
     return this.request('/usuarios');
+  }
+
+  static regenerateQr(userId) {
+    return this.request(`/usuarios/${userId}/regenerar-qr`, {
+      method: 'POST'
+    });
+  }
+
+  static getConfigInfo() {
+    return this.request('/usuarios/config/info');
   }
 
   static createMembership(usuarioId, data) {
@@ -204,6 +215,10 @@ class GymLifeAPI {
 
   static getRoutinesByMember(miembroId) {
     return this.request(`/rutinas/miembro/${miembroId}`);
+  }
+
+  static getAllRoutines() {
+    return this.request('/rutinas');
   }
 
   static getAttendancesByUser(usuarioId) {

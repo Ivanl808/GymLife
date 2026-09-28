@@ -2,6 +2,7 @@ package com.gymlife.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
+import java.util.UUID;
 
 @Entity
 @Table(name = "usuarios")
@@ -24,15 +25,27 @@ public class User {
     @Column(nullable = false)
     private Role rol;
 
+    @Column(name = "qr_token", unique = true, nullable = false, length = 64)
+    private String qrToken;
+
     public User() {
+        this.qrToken = UUID.randomUUID().toString();
     }
 
-    public User(Long idUsuario, String nombre, String email, String passwordHash, Role rol) {
+    public User(Long idUsuario, String nombre, String email, String passwordHash, Role rol, String qrToken) {
         this.idUsuario = idUsuario;
         this.nombre = nombre;
         this.email = email;
         this.passwordHash = passwordHash;
         this.rol = rol;
+        this.qrToken = qrToken != null ? qrToken : UUID.randomUUID().toString();
+    }
+
+    @PrePersist
+    public void ensureQrToken() {
+        if (this.qrToken == null || this.qrToken.isBlank()) {
+            this.qrToken = UUID.randomUUID().toString();
+        }
     }
 
     public Long getIdUsuario() {
@@ -75,6 +88,14 @@ public class User {
         this.rol = rol;
     }
 
+    public String getQrToken() {
+        return qrToken;
+    }
+
+    public void setQrToken(String qrToken) {
+        this.qrToken = qrToken;
+    }
+
     public static UserBuilder builder() {
         return new UserBuilder();
     }
@@ -85,6 +106,7 @@ public class User {
         private String email;
         private String passwordHash;
         private Role rol;
+        private String qrToken;
 
         UserBuilder() {
         }
@@ -114,8 +136,13 @@ public class User {
             return this;
         }
 
+        public UserBuilder qrToken(String qrToken) {
+            this.qrToken = qrToken;
+            return this;
+        }
+
         public User build() {
-            return new User(idUsuario, nombre, email, passwordHash, rol);
+            return new User(idUsuario, nombre, email, passwordHash, rol, qrToken);
         }
     }
 }

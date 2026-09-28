@@ -48,21 +48,42 @@ public class ClassService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario no encontrado"));
 
         if (!c.tieneCupo()) {
-            throw new IllegalStateException(
-                    "La clase está llena. Se requiere lista de espera.");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "La clase está llena.");
         }
 
         if (c.getUsuarios() != null && c.getUsuarios().stream()
                 .anyMatch(x -> x.getIdUsuario() != null && x.getIdUsuario().equals(usuarioId))) {
-            throw new IllegalStateException("El miembro ya tiene una reserva.");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Ya tienes una reserva confirmada en esta clase.");
+        }
+
+        // Validación de Empalme de Horarios (Conflicto de Agendamiento)
+        if (c.getHorario() != null) {
+            List<GroupClass> todasLasClases = classes.findAll();
+            boolean conflictoHorario = todasLasClases.stream()
+                .filter(otraClase -> !otraClase.getIdClase().equals(claseId))
+                .filter(otraClase -> otraClase.getHorario() != null && otraClase.getHorario().equals(c.getHorario()))
+                .anyMatch(otraClase -> otraClase.getUsuarios() != null && otraClase.getUsuarios().stream()
+                    .anyMatch(x -> x.getIdUsuario() != null && x.getIdUsuario().equals(usuarioId)));
+
+            if (conflictoHorario) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Ya tienes otra clase reservada a la misma fecha y hora (" + c.getHorario().toString().replace("T", " ") + "). No puedes asistir a dos clases simultáneamente.");
+            }
+        }
+
+        if (c.getUsuarios() == null) {
+            c.setUsuarios(new java.util.ArrayList<>());
         }
 
         c.getUsuarios().add(u);
         GroupClass savedClass = classes.save(c);
 
         // Envío de correo electrónico con horario de la clase reservada
-        String horarioStr = c.getHorario() != null ? c.getHorario().toString().replace("T", " ") : "Programado";
-        emailService.enviarCorreoReservaClase(u.getEmail(), u.getNombre(), c.getNombre(), horarioStr);
+        try {
+            String horarioStr = c.getHorario() != null ? c.getHorario().toString().replace("T", " ") : "Programado";
+            emailService.enviarCorreoReservaClase(u.getEmail(), u.getNombre(), c.getNombre(), horarioStr);
+        } catch (Exception e) {
+            System.err.println("Error al enviar correo de reserva: " + e.getMessage());
+        }
 
         return savedClass;
     }
@@ -79,8 +100,8 @@ public class ClassService {
                 .anyMatch(x -> x.getIdUsuario() != null && x.getIdUsuario().equals(usuarioId));
 
         if (!reservado) {
-            throw new IllegalStateException(
-                    "El usuario no tiene reserva en esta clase.");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Para registrar asistencia a esta clase primero debes tener un cupo reservado.");
         }
 
         Attendance a = Attendance.builder()

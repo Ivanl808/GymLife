@@ -30,6 +30,16 @@ public class MembershipService {
     public Membership crear(Long usuarioId, Membership membership) {
         User user = users.findById(usuarioId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario no encontrado"));
+        
+        // Inactivar membresías anteriores para evitar duplicados/discrepancias
+        List<Membership> anteriores = memberships.findByUsuarioIdUsuario(usuarioId);
+        for (Membership ant : anteriores) {
+            if (ant.getEstado() == MembershipStatus.ACTIVA) {
+                ant.setEstado(MembershipStatus.CANCELADA);
+                memberships.save(ant);
+            }
+        }
+
         membership.setUsuario(user);
         membership.setEstado(MembershipStatus.ACTIVA);
         return memberships.save(membership);

@@ -11,11 +11,26 @@ document.addEventListener('DOMContentLoaded', () => {
   checkSession();
 });
 
-function checkSession() {
+async function checkSession() {
   const storedUser = localStorage.getItem('gymlife_user');
   if (storedUser) {
     currentUser = JSON.parse(storedUser);
     document.getElementById('auth-screen').classList.add('hidden');
+    
+    // Auto-sincronizar el usuario con la Base de Datos para asegurar que tenga su qrToken actualizado
+    try {
+      const users = await GymLifeAPI.getUsers();
+      const me = users.find(u => u.idUsuario === currentUser.usuarioId);
+      if (me && me.qrToken) {
+        currentUser.qrToken = me.qrToken;
+        currentUser.nombre = me.nombre;
+        currentUser.rol = me.rol;
+        localStorage.setItem('gymlife_user', JSON.stringify(currentUser));
+      }
+    } catch (e) {
+      console.warn('Usando sesión local guardada');
+    }
+
     initUserView();
   } else {
     document.getElementById('auth-screen').classList.remove('hidden');
@@ -147,6 +162,7 @@ async function renderDashboardView(container) {
   const memberships = currentUser ? await GymLifeAPI.getMembershipsByUser(currentUser.usuarioId) : [];
   const attendances = currentUser ? await GymLifeAPI.getAttendancesByUser(currentUser.usuarioId) : [];
 
+  const isStaff = currentUser?.rol === 'ADMINISTRADOR' || currentUser?.rol === 'ENTRENADOR';
   const activeMembership = memberships.find(m => m.estado === 'ACTIVA') || memberships[0];
 
   container.innerHTML = `
@@ -158,9 +174,11 @@ async function renderDashboardView(container) {
         </div>
         <div>
           <p class="text-xs text-slate-400 font-medium">Membresia Actual</p>
-          <h4 class="text-lg font-bold text-white truncate max-w-[130px]">${activeMembership ? activeMembership.tipo : 'Sin Membresia'}</h4>
-          <span class="text-[10px] ${activeMembership && activeMembership.estado === 'ACTIVA' ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' : 'text-amber-400 bg-amber-500/10 border-amber-500/20'} px-2 py-0.5 rounded-md font-semibold border">
-            ${activeMembership ? activeMembership.estado : 'INACTIVA'}
+          <h4 class="text-lg font-bold text-white truncate max-w-[130px]">
+            ${isStaff ? 'Staff VIP' : (activeMembership ? activeMembership.tipo : 'Sin Membresia')}
+          </h4>
+          <span class="text-[10px] ${isStaff ? 'text-purple-400 bg-purple-500/10 border-purple-500/20' : (activeMembership && activeMembership.estado === 'ACTIVA' ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' : 'text-amber-400 bg-amber-500/10 border-amber-500/20')} px-2 py-0.5 rounded-md font-semibold border">
+            ${isStaff ? 'PERMANENTE' : (activeMembership ? activeMembership.estado : 'INACTIVA')}
           </span>
         </div>
       </div>
@@ -228,7 +246,11 @@ async function renderDashboardView(container) {
               </div>
               <div class="text-right">
                 <span class="text-xs px-2.5 py-1 rounded-full bg-slate-800 text-slate-300 border border-slate-700 font-medium">Cupo: ${c.usuarios?.length || 0}/${c.cupoMaximo}</span>
-                <button onclick="handleReserveClass(${c.idClase})" class="block mt-2 text-xs font-bold text-brand-400 hover:text-brand-300">Reservar Ahora &rarr;</button>
+                ${c.usuarios?.some(u => u.idUsuario === currentUser?.usuarioId) ? `
+                  <span class="block mt-2 text-xs font-bold text-emerald-400"><i class="fa-solid fa-circle-check"></i> Reservado</span>
+                ` : `
+                  <button onclick="handleReserveClass(${c.idClase})" class="block mt-2 text-xs font-bold text-brand-400 hover:text-brand-300">Reservar Ahora &rarr;</button>
+                `}
               </div>
             </div>
           `).join('')}
@@ -247,7 +269,7 @@ async function renderDashboardView(container) {
 
         <div class="my-4 p-4 bg-slate-900 rounded-2xl border border-slate-800 flex flex-col items-center">
           <div id="dash-qrcode" class="bg-white p-2 rounded-xl"></div>
-          <p class="text-[11px] font-mono text-slate-400 mt-2">GYMLIFE-ID-${currentUser?.usuarioId || 1}</p>
+          <p class="text-[11px] font-mono text-slate-400 mt-2" id="dash-qrcode-text">GYMLIFE-PASS-${currentUser?.qrToken || currentUser?.usuarioId || 'SECURE'}</p>
         </div>
 
         <button onclick="openQrPassModal()" class="w-full py-2.5 bg-brand-600 hover:bg-brand-500 text-white font-bold text-xs rounded-xl transition-all shadow-lg shadow-brand-500/20">
@@ -259,12 +281,29 @@ async function renderDashboardView(container) {
   `;
 
   // Render QR in dashboard card
-  setTimeout(() => {
+  setTimeout(async () => {
     const qrElem = document.getElementById('dash-qrcode');
     if (qrElem) {
       qrElem.innerHTML = '';
+      const token = (currentUser?.qrToken && currentUser.qrToken.length > 10) 
+        ? currentUser.qrToken 
+        : (currentUser?.usuarioId || 'SECURE');
+      const cleanToken = token.startsWith('GYMLIFE-PASS-') ? token : `GYMLIFE-PASS-${token}`;
+      
+      let appBaseUrl = window.location.origin;
+      try {
+        const config = await GymLifeAPI.getConfigInfo();
+        if (config?.baseUrl) appBaseUrl = config.baseUrl;
+      } catch (e) {
+        console.warn('Usando URL actual para QR');
+      }
+
+      const targetUrl = `${appBaseUrl}/validar-acceso.html?token=${cleanToken}`;
+      
+      const textElem = document.getElementById('dash-qrcode-text');
+      if (textElem) textElem.textContent = cleanToken;
       new QRCode(qrElem, {
-        text: `GYMLIFE-USER-${currentUser?.usuarioId || 1}`,
+        text: targetUrl,
         width: 100,
         height: 100
       });
@@ -302,12 +341,25 @@ async function renderClassesView(container) {
           </div>
 
           <div class="space-y-2 pt-3 border-t border-slate-800">
-            <button onclick="handleReserveClass(${c.idClase})" class="w-full py-2 bg-brand-600 hover:bg-brand-500 text-white font-bold text-xs rounded-xl transition-all shadow">
-              Reservar Cupo
-            </button>
-            <button onclick="handleMarkAttendance(${c.idClase})" class="w-full py-2 bg-slate-900 hover:bg-slate-800 text-slate-300 font-semibold text-xs rounded-xl border border-slate-800 transition-all">
-              <i class="fa-solid fa-qrcode mr-1"></i> Registrar Asistencia QR
-            </button>
+            ${c.usuarios?.some(u => u.idUsuario === currentUser?.usuarioId) ? `
+              <button disabled class="w-full py-2 bg-emerald-600/20 text-emerald-400 font-bold text-xs rounded-xl border border-emerald-500/30 flex items-center justify-center gap-1.5 cursor-not-allowed">
+                <i class="fa-solid fa-circle-check"></i> Cupo Reservado
+              </button>
+              <button onclick="handleMarkAttendance(${c.idClase})" class="w-full py-2 bg-slate-900 hover:bg-slate-800 text-slate-300 font-semibold text-xs rounded-xl border border-slate-800 transition-all">
+                <i class="fa-solid fa-qrcode mr-1"></i> Registrar Asistencia QR
+              </button>
+            ` : (classes.some(otra => otra.idClase !== c.idClase && otra.horario === c.horario && otra.usuarios?.some(u => u.idUsuario === currentUser?.usuarioId)) ? `
+              <button disabled class="w-full py-2 bg-amber-500/10 text-amber-400 font-bold text-xs rounded-xl border border-amber-500/20 flex items-center justify-center gap-1.5 cursor-not-allowed" title="Ya tienes otra clase reservada en este mismo horario">
+                <i class="fa-solid fa-clock font-bold"></i> Empalme de Horario
+              </button>
+            ` : `
+              <button onclick="handleReserveClass(${c.idClase})" class="w-full py-2 bg-brand-600 hover:bg-brand-500 text-white font-bold text-xs rounded-xl transition-all shadow">
+                Reservar Cupo
+              </button>
+              <button onclick="handleMarkAttendance(${c.idClase})" class="w-full py-2 bg-slate-900 hover:bg-slate-800 text-slate-300 font-semibold text-xs rounded-xl border border-slate-800 transition-all">
+                <i class="fa-solid fa-qrcode mr-1"></i> Registrar Asistencia QR
+              </button>
+            `)}
           </div>
         </div>
       `).join('')}
@@ -317,98 +369,220 @@ async function renderClassesView(container) {
 
 // 3. ROUTINES VIEW
 async function renderRoutinesView(container) {
-  const routines = await GymLifeAPI.getRoutinesByMember(currentUser.usuarioId);
+  const isCoach = currentUser.rol === 'ENTRENADOR' || currentUser.rol === 'ADMINISTRADOR';
+  const routines = isCoach 
+    ? await GymLifeAPI.getAllRoutines() 
+    : await GymLifeAPI.getRoutinesByMember(currentUser.usuarioId);
 
   container.innerHTML = `
-    <div class="flex items-center justify-between mb-2">
+    <div class="flex items-center justify-between mb-4">
       <div>
-        <h2 class="text-xl font-extrabold text-white">Rutinas de Entrenamiento</h2>
-        <p class="text-xs text-slate-400">Planes estructurados por tu entrenador personal</p>
+        <h2 class="text-xl font-extrabold text-white">${isCoach ? 'Gestión de Rutinas Asignadas' : 'Mis Rutinas de Entrenamiento'}</h2>
+        <p class="text-xs text-slate-400">${isCoach ? 'Diseña y asigna programas de ejercicios personalizados a los socios' : 'Planes estructurados por tu entrenador personal'}</p>
       </div>
-      ${currentUser.rol !== 'MIEMBRO' ? `
-        <button onclick="openModal('modal-routine')" class="px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-brand-500/20 flex items-center gap-2">
-          <i class="fa-solid fa-plus"></i> Asignar Rutina
+      ${isCoach ? `
+        <button onclick="openAssignRoutineModal()" class="px-4 py-2.5 bg-brand-600 hover:bg-brand-500 text-white font-extrabold text-xs rounded-xl shadow-lg shadow-brand-500/20 flex items-center gap-2 transition-all">
+          <i class="fa-solid fa-plus text-sm"></i> Asignar Rutina a Socio
         </button>
       ` : ''}
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-      ${routines.map(r => `
-        <div class="glass-card p-6 rounded-3xl border border-slate-800 relative">
-          <div class="flex items-start justify-between">
-            <div>
-              <span class="px-2.5 py-1 text-[10px] font-bold uppercase rounded-lg bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 mb-2 inline-block">${r.nivel || 'General'}</span>
-              <h3 class="text-lg font-bold text-white">${r.nombre}</h3>
-            </div>
-            <div class="text-right">
+      ${routines.length > 0 ? routines.map(r => `
+        <div class="glass-card p-6 rounded-3xl border border-slate-800 relative flex flex-col justify-between">
+          <div>
+            <div class="flex items-start justify-between mb-3">
+              <span class="px-2.5 py-1 text-[10px] font-extrabold uppercase rounded-lg bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">${r.nivel || 'General'}</span>
               <span class="text-xs font-bold text-slate-300"><i class="fa-regular fa-clock text-brand-500 mr-1"></i>${r.duracion || 45} min</span>
             </div>
+            <h3 class="text-lg font-bold text-white mb-2">${r.nombre}</h3>
+            ${isCoach && r.miembro ? `
+              <div class="p-2.5 bg-slate-900 rounded-xl border border-slate-800 text-xs text-slate-300 mb-3 flex items-center gap-2">
+                <i class="fa-solid fa-user text-brand-500"></i>
+                <span>Socio Asignado: <strong class="text-white">${r.miembro.nombre}</strong> (${r.miembro.email})</span>
+              </div>
+            ` : ''}
           </div>
 
-          <div class="mt-4 pt-4 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400">
-            <span>Coach: <strong class="text-slate-200">${r.entrenador?.nombre || 'Carlos Entrenador'}</strong></span>
-            <button class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-brand-400 rounded-lg font-bold text-xs">Ver Ejercicios</button>
+          <div class="mt-2 pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
+            <span>Coach Responsable: <strong class="text-slate-200">${r.entrenador?.nombre || 'Carlos Entrenador'}</strong></span>
+            <span class="px-2.5 py-1 bg-emerald-500/10 text-emerald-400 rounded-lg font-bold text-[10px] border border-emerald-500/20">ACTIVA</span>
           </div>
         </div>
-      `).join('')}
+      `).join('') : `
+        <div class="col-span-2 glass-card p-12 text-center rounded-3xl border border-slate-800">
+          <div class="w-16 h-16 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-500 text-2xl mx-auto mb-3">
+            <i class="fa-solid fa-dumbbell"></i>
+          </div>
+          <h4 class="text-base font-bold text-white mb-1">${isCoach ? 'No se han creado rutinas aún' : 'No tienes rutinas asignadas actualmente'}</h4>
+          <p class="text-xs text-slate-400 max-w-sm mx-auto mb-4">${isCoach ? 'Haz clic en "Asignar Rutina a Socio" para crear el primer plan de ejercicios.' : 'Tu entrenador te asignará un plan de entrenamiento adaptado a tus objetivos.'}</p>
+          ${isCoach ? `
+            <button onclick="openAssignRoutineModal()" class="px-4 py-2 bg-brand-600 text-white font-bold text-xs rounded-xl">Crear Primera Rutina</button>
+          ` : ''}
+        </div>
+      `}
     </div>
   `;
 }
 
+// Plan catalog global state for checkout
+let selectedPlanForCheckout = {
+  tipo: 'Mensual VIP Gold',
+  monto: 49.99,
+  dias: 30
+};
+
 // 4. MEMBERSHIP VIEW
 async function renderMembershipView(container) {
   const memberships = await GymLifeAPI.getMembershipsByUser(currentUser.usuarioId);
+  const activeMembership = memberships.find(m => m.estado === 'ACTIVA') || memberships[0];
+
+  const isStaff = currentUser.rol === 'ADMINISTRADOR' || currentUser.rol === 'ENTRENADOR';
 
   container.innerHTML = `
-    <div class="flex items-center justify-between mb-2">
+    <div class="flex items-center justify-between mb-4">
       <div>
-        <h2 class="text-xl font-extrabold text-white">Membresias y Estado Financiero</h2>
-        <p class="text-xs text-slate-400">Consulta de vigencia y registro de pagos</p>
+        <h2 class="text-xl font-extrabold text-white">Membresías & Planes Disponibles</h2>
+        <p class="text-xs text-slate-400">Selecciona o renueva tu plan con pasarela de pago instantánea</p>
       </div>
-      <button onclick="openModal('modal-payment')" class="px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-brand-500/20 flex items-center gap-2">
-        <i class="fa-solid fa-credit-card"></i> Registrar Pago
-      </button>
     </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      <div class="lg:col-span-1 glass-card p-6 rounded-3xl border border-slate-800">
-        <h3 class="text-sm font-bold text-white mb-4">Estado de Membresia</h3>
-        ${memberships.map(m => `
-          <div class="p-4 rounded-2xl bg-slate-900 border border-slate-800 mb-3">
-            <div class="flex justify-between items-center mb-2">
-              <h4 class="font-bold text-white text-base">${m.tipo}</h4>
-              <span class="px-2 py-0.5 text-[10px] font-bold rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">${m.estado}</span>
-            </div>
-            <p class="text-xs text-slate-400">Desde: <strong class="text-slate-300">${m.fechaInicio}</strong></p>
-            <p class="text-xs text-slate-400">Hasta: <strong class="text-slate-300">${m.fechaFin}</strong></p>
+    <!-- Estado Actual de la Membresía del Usuario -->
+    <div class="glass-card p-6 rounded-3xl border border-slate-800 mb-8 relative overflow-hidden">
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <span class="text-[10px] font-extrabold uppercase tracking-widest ${isStaff ? 'text-purple-400 bg-purple-500/10 border-purple-500/20' : 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'} px-3 py-1 rounded-full border inline-block mb-2">
+            ${isStaff ? 'PASE DE ACCESO STAFF / ADMIN' : 'Membresía Actual'}
+          </span>
+          <h3 class="text-2xl font-black text-white">
+            ${isStaff 
+              ? 'Membresía Ilimitada Staff VIP' 
+              : (activeMembership ? activeMembership.tipo : 'Sin Membresía Activa')}
+          </h3>
+          <p class="text-xs text-slate-400 mt-1">
+            ${isStaff 
+              ? 'Como Administrador/Staff cuentas con **Acceso Ilimitado Total y Gratuito** al gimnasio y todas las instalaciones.'
+              : (activeMembership 
+                  ? `Vigente desde el <strong class="text-slate-200">${activeMembership.fechaInicio}</strong> hasta el <strong class="text-emerald-400">${activeMembership.fechaFin}</strong>`
+                  : 'Selecciona uno de los siguientes planes para activar tu pase de acceso al gimnasio.')}
+          </p>
+        </div>
+        ${!isStaff && activeMembership ? `
+          <button onclick="openCheckoutModal('${activeMembership.tipo}', 49.99, 30)" class="px-5 py-3 bg-brand-600 hover:bg-brand-500 text-white font-extrabold text-xs rounded-2xl shadow-lg shadow-brand-500/20 transition-all flex items-center justify-center gap-2 shrink-0">
+            <i class="fa-solid fa-arrows-rotate text-sm"></i>
+            <span>Renovar Este Plan ($49.99)</span>
+          </button>
+        ` : ''}
+        ${isStaff ? `
+          <button onclick="openCheckoutModal('Membresía Adicional VIP', 0.00, 365)" class="px-5 py-3 bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/30 font-extrabold text-xs rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2 shrink-0">
+            <i class="fa-solid fa-gem text-sm"></i>
+            <span>Asignarme Plan Especial Gratis</span>
+          </button>
+        ` : ''}
+      </div>
+    </div>
+
+    <!-- Catálogo de Planes Disponibles -->
+    <h3 class="text-base font-bold text-white mb-4"><i class="fa-solid fa-gem text-brand-500 mr-2"></i>Elige Tu Plan de Entrenamiento</h3>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      
+      <!-- Plan 1: Mensual -->
+      <div class="glass-card glass-card-hover p-6 rounded-3xl border border-slate-800 flex flex-col justify-between relative">
+        <div>
+          <span class="px-2.5 py-1 text-[10px] font-bold uppercase rounded-lg bg-blue-500/10 text-blue-400 border border-blue-500/20 mb-3 inline-block">Flexibilidad Mensual</span>
+          <h4 class="text-lg font-bold text-white">Plan Mensual VIP</h4>
+          <div class="my-4">
+            <span class="text-3xl font-black text-white">$49.99</span>
+            <span class="text-xs text-slate-400"> / mes</span>
           </div>
-        `).join('')}
+          <ul class="space-y-2.5 text-xs text-slate-300 mb-6">
+            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400"></i> Acceso ilimitado al gimnasio</li>
+            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400"></i> Pase Digital QR en App y Email</li>
+            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400"></i> Clases grupales incluidas</li>
+          </ul>
+        </div>
+        <button onclick="openCheckoutModal('Plan Mensual VIP', 49.99, 30)" class="w-full py-2.5 bg-slate-800 hover:bg-brand-600 text-white font-bold text-xs rounded-xl transition-all border border-slate-700">
+          Contratar Plan Mensual
+        </button>
       </div>
 
-      <div class="lg:col-span-2 glass-card p-6 rounded-3xl border border-slate-800">
-        <h3 class="text-sm font-bold text-white mb-4">Historial Reciente de Pagos</h3>
-        <div class="overflow-x-auto">
-          <table class="w-full text-left text-xs text-slate-300">
-            <thead class="bg-slate-900 text-slate-400 uppercase text-[10px]">
-              <tr>
-                <th class="p-3">ID Pago</th>
-                <th class="p-3">Monto</th>
-                <th class="p-3">Metodo</th>
-                <th class="p-3">Fecha</th>
-                <th class="p-3">Estado</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-slate-800">
-              <tr>
-                <td class="p-3 font-mono">#PAG-001</td>
-                <td class="p-3 font-bold text-white">$49.99</td>
-                <td class="p-3">TARJETA</td>
-                <td class="p-3">2025-05-01</td>
-                <td class="p-3"><span class="text-emerald-400 font-bold">Completado</span></td>
-              </tr>
-            </tbody>
-          </table>
+      <!-- Plan 2: Trimestral (Recomendado) -->
+      <div class="glass-card p-6 rounded-3xl border-2 border-brand-500/80 flex flex-col justify-between relative shadow-2xl shadow-brand-500/10">
+        <span class="absolute -top-3.5 left-1/2 transform -translate-x-1/2 bg-brand-500 text-slate-950 font-black text-[10px] uppercase tracking-wider px-3 py-1 rounded-full shadow-lg">
+          Más Popular
+        </span>
+        <div>
+          <span class="px-2.5 py-1 text-[10px] font-bold uppercase rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 mb-3 inline-block">Plan Trimestral Pro</span>
+          <h4 class="text-lg font-bold text-white">Trimestral Pro (+Rutinas)</h4>
+          <div class="my-4">
+            <span class="text-3xl font-black text-emerald-400">$129.99</span>
+            <span class="text-xs text-slate-400"> / 3 meses</span>
+          </div>
+          <ul class="space-y-2.5 text-xs text-slate-300 mb-6">
+            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400"></i> Todo lo del Plan Mensual</li>
+            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400"></i> Rutina personalizada con Coach</li>
+            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400"></i> Descuento del 15% incluido</li>
+          </ul>
         </div>
+        <button onclick="openCheckoutModal('Plan Trimestral Pro', 129.99, 90)" class="w-full py-3 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-600 text-white font-black text-xs rounded-xl transition-all shadow-lg shadow-emerald-500/20">
+          Seleccionar Plan Trimestral
+        </button>
+      </div>
+
+      <!-- Plan 3: Anual Black -->
+      <div class="glass-card glass-card-hover p-6 rounded-3xl border border-slate-800 flex flex-col justify-between relative">
+        <div>
+          <span class="px-2.5 py-1 text-[10px] font-bold uppercase rounded-lg bg-purple-500/10 text-purple-400 border border-purple-500/20 mb-3 inline-block">VIP Anual</span>
+          <h4 class="text-lg font-bold text-white">Anual Black VIP</h4>
+          <div class="my-4">
+            <span class="text-3xl font-black text-white">$399.99</span>
+            <span class="text-xs text-slate-400"> / año</span>
+          </div>
+          <ul class="space-y-2.5 text-xs text-slate-300 mb-6">
+            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400"></i> Acceso Total las 24 Horas</li>
+            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400"></i> Invitado VIP Gratis 1 vez por mes</li>
+            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400"></i> Evaluación de Nutrición semestral</li>
+          </ul>
+        </div>
+        <button onclick="openCheckoutModal('Anual Black VIP', 399.99, 365)" class="w-full py-2.5 bg-slate-800 hover:bg-brand-600 text-white font-bold text-xs rounded-xl transition-all border border-slate-700">
+          Contratar Plan Anual
+        </button>
+      </div>
+
+    </div>
+
+    <!-- Historial Oficial de Facturas y Pagos -->
+    <div class="glass-card p-6 rounded-3xl border border-slate-800">
+      <h3 class="text-sm font-bold text-white mb-4"><i class="fa-solid fa-receipt text-slate-400 mr-2"></i>Historial de Pagos y Comprobantes</h3>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-xs text-slate-300">
+          <thead class="bg-slate-900 text-slate-400 uppercase text-[10px]">
+            <tr>
+              <th class="p-3">ID Pago</th>
+              <th class="p-3">Plan/Concepto</th>
+              <th class="p-3">Monto</th>
+              <th class="p-3">Método de Pago</th>
+              <th class="p-3">Fecha</th>
+              <th class="p-3">Estado</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-800">
+            ${memberships.length > 0 ? memberships.map(m => `
+              <tr>
+                <td class="p-3 font-mono text-emerald-400">#PAG-${m.idMembresia || '101'}</td>
+                <td class="p-3 font-bold text-white">${m.tipo}</td>
+                <td class="p-3 font-bold text-white">$49.99</td>
+                <td class="p-3"><span class="px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700 text-[10px]">TARJETA CRÉDITO</span></td>
+                <td class="p-3">${m.fechaInicio}</td>
+                <td class="p-3"><span class="text-emerald-400 font-bold flex items-center gap-1"><i class="fa-solid fa-circle-check"></i> Aprobado</span></td>
+              </tr>
+            `).join('') : `
+              <tr>
+                <td colspan="6" class="p-4 text-center text-slate-500">No hay pagos registrados anteriormente.</td>
+              </tr>
+            `}
+          </tbody>
+        </table>
       </div>
     </div>
   `;
@@ -419,10 +593,10 @@ async function renderUsersView(container) {
   const users = await GymLifeAPI.getUsers();
 
   container.innerHTML = `
-    <div class="flex items-center justify-between mb-2">
+    <div class="flex items-center justify-between mb-4">
       <div>
         <h2 class="text-xl font-extrabold text-white">Directorio de Usuarios</h2>
-        <p class="text-xs text-slate-400">Administración de atletas, entrenadores y staff</p>
+        <p class="text-xs text-slate-400">Administración de atletas, entrenadores y vigencia de membresías</p>
       </div>
     </div>
 
@@ -432,31 +606,122 @@ async function renderUsersView(container) {
           <thead class="bg-slate-900 text-slate-400 uppercase text-[10px]">
             <tr>
               <th class="p-3">ID</th>
-              <th class="p-3">Nombre</th>
-              <th class="p-3">Correo</th>
+              <th class="p-3">Socio / Usuario</th>
               <th class="p-3">Rol</th>
-              <th class="p-3">Acciones</th>
+              <th class="p-3">Plan de Membresía</th>
+              <th class="p-3">Vigencia / Tiempo Restante</th>
+              <th class="p-3 text-right">Acciones de Admin</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-slate-800">
-            ${users.map(u => `
-              <tr>
-                <td class="p-3 font-mono text-slate-500">#${u.idUsuario}</td>
-                <td class="p-3 font-bold text-white">${u.nombre}</td>
-                <td class="p-3 text-slate-400">${u.email}</td>
-                <td class="p-3"><span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-800 text-brand-400 border border-slate-700">${u.rol}</span></td>
-                <td class="p-3">
-                  <button onclick="handleAssignMembership(${u.idUsuario})" class="px-2.5 py-1 bg-brand-600/20 text-brand-400 border border-brand-500/30 rounded-lg text-[10px] font-bold hover:bg-brand-600/30">
-                    Asignar Membresia
-                  </button>
-                </td>
-              </tr>
-            `).join('')}
+            ${users.map(u => {
+              const esAdmin = u.rol === 'ADMINISTRADOR' || u.rol === 'ENTRENADOR';
+              return `
+                <tr>
+                  <td class="p-3 font-mono text-slate-500">#${u.idUsuario}</td>
+                  <td class="p-3">
+                    <div class="font-bold text-white text-sm">${u.nombre}</div>
+                    <div class="text-[11px] text-slate-400">${u.email}</div>
+                  </td>
+                  <td class="p-3">
+                    <span class="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase ${esAdmin ? 'bg-purple-500/10 text-purple-400 border border-purple-500/30' : 'bg-slate-800 text-brand-400 border border-slate-700'}">
+                      ${u.rol}
+                    </span>
+                  </td>
+                  <td class="p-3">
+                    ${esAdmin 
+                      ? `<span class="font-bold text-purple-300 flex items-center gap-1.5"><i class="fa-solid fa-crown text-purple-400"></i> Staff VIP Ilimitado</span>`
+                      : `<div id="user-plan-title-${u.idUsuario}" class="font-semibold text-slate-300"><i class="fa-solid fa-circle-notch animate-spin text-brand-500 mr-1"></i>Consultando...</div>`}
+                  </td>
+                  <td class="p-3">
+                    ${esAdmin 
+                      ? `<span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-purple-500/10 text-purple-400 border border-purple-500/20">PERMANENTE</span>`
+                      : `<div id="user-status-time-${u.idUsuario}" class="text-xs">---</div>`}
+                  </td>
+                  <td class="p-3 text-right">
+                    <div class="flex items-center justify-end gap-2">
+                      <button onclick="openAdminAssignPlanModal(${u.idUsuario}, '${u.nombre}')" class="px-3 py-1.5 bg-brand-600/20 hover:bg-brand-600/30 text-brand-400 border border-brand-500/30 rounded-xl text-[11px] font-bold transition-all flex items-center gap-1.5">
+                        <i class="fa-solid fa-id-card"></i> Gestionar Plan
+                      </button>
+                      <button onclick="handleRegenerateQr(${u.idUsuario})" class="px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/20 rounded-xl text-[11px] font-bold transition-all flex items-center gap-1.5" title="Enviar nuevo Pase QR por correo">
+                        <i class="fa-solid fa-arrows-rotate"></i> Reenviar QR
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              `;
+            }).join('')}
           </tbody>
         </table>
       </div>
     </div>
   `;
+
+  // Cargar estado de membresías y cálculo exacto de días restantes
+  users.forEach(async (u) => {
+    if (u.rol !== 'ADMINISTRADOR' && u.rol !== 'ENTRENADOR') {
+      try {
+        const mList = await GymLifeAPI.getMembershipsByUser(u.idUsuario);
+        const planTitleElem = document.getElementById(`user-plan-title-${u.idUsuario}`);
+        const timeElem = document.getElementById(`user-status-time-${u.idUsuario}`);
+
+        // Seleccionar la membresía activa más reciente (por mayor ID o fecha de inicio)
+        const act = mList
+          .filter(m => m.estado === 'ACTIVA')
+          .sort((a, b) => (b.idMembresia || 0) - (a.idMembresia || 0))[0];
+        
+        if (act && act.fechaFin) {
+          const hoy = new Date();
+          const fin = new Date(act.fechaFin);
+          
+          // Calcular días de diferencia
+          const diffTiempo = fin.getTime() - hoy.getTime();
+          const diasRestantes = Math.ceil(diffTiempo / (1000 * 3600 * 24));
+
+          if (planTitleElem) {
+            planTitleElem.innerHTML = `<span class="font-bold text-white"><i class="fa-solid fa-gem text-emerald-400 mr-1.5"></i>${act.tipo}</span>`;
+          }
+
+          if (timeElem) {
+            if (diasRestantes > 0) {
+              timeElem.innerHTML = `
+                <div class="flex items-center gap-2">
+                  <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">ACTIVO</span>
+                  <span class="font-mono text-emerald-300 font-bold"><i class="fa-regular fa-clock mr-1"></i>${diasRestantes} días restantes</span>
+                </div>
+                <div class="text-[10px] text-slate-500 mt-0.5">Vence el ${act.fechaFin}</div>
+              `;
+            } else if (diasRestantes === 0) {
+              timeElem.innerHTML = `
+                <div class="flex items-center gap-2">
+                  <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase bg-amber-500/10 text-amber-400 border border-amber-500/20">VENCE HOY</span>
+                  <span class="font-mono text-amber-300 font-bold">Último día</span>
+                </div>
+              `;
+            } else {
+              timeElem.innerHTML = `
+                <div class="flex items-center gap-2">
+                  <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase bg-red-500/10 text-red-400 border border-red-500/20">VENCIDO</span>
+                  <span class="text-red-400 font-medium">Caducó hace ${Math.abs(diasRestantes)} días</span>
+                </div>
+              `;
+            }
+          }
+        } else {
+          if (planTitleElem) {
+            planTitleElem.innerHTML = `<span class="text-slate-500 font-medium">Sin Plan Contratado</span>`;
+          }
+          if (timeElem) {
+            timeElem.innerHTML = `
+              <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase bg-slate-800 text-slate-400 border border-slate-700">INACTIVO</span>
+            `;
+          }
+        }
+      } catch(e) {
+        console.error('Error consultando membresía:', e);
+      }
+    }
+  });
 }
 
 // AUTH HANDLERS
@@ -492,21 +757,42 @@ function fillDemoUser(role) {
 
 async function handleLogin(e) {
   e.preventDefault();
-  const email = document.getElementById('login-email').value;
-  const pass = document.getElementById('login-password').value;
+  console.log('[handleLogin] Evento submit capturado correctamente');
+
+  const emailElem = document.getElementById('login-email');
+  const passElem = document.getElementById('login-password');
+
+  if (!emailElem || !passElem) {
+    console.error('Campos de login no encontrados');
+    showToast('Error en formulario de autenticación', 'error');
+    return;
+  }
+
+  const email = emailElem.value.trim();
+  const pass = passElem.value.trim();
+
+  if (!email || !pass) {
+    showToast('Por favor ingresa correo y contraseña', 'error');
+    return;
+  }
 
   try {
+    console.log(`[handleLogin] Intentando autenticar a: ${email}`);
     const res = await GymLifeAPI.login(email, pass);
+    console.log('[handleLogin] Respuesta exitosa del servidor:', res);
+
     currentUser = {
       usuarioId: res.usuarioId,
       nombre: res.nombre,
-      rol: res.rol
+      rol: res.rol,
+      qrToken: res.qrToken
     };
     localStorage.setItem('gymlife_user', JSON.stringify(currentUser));
     document.getElementById('auth-screen').classList.add('hidden');
     showToast(`¡Bienvenido/a, ${currentUser.nombre}!`, 'success');
     initUserView();
   } catch (err) {
+    console.error('[handleLogin Error]:', err);
     showToast(err.message || 'Credenciales incorrectas. Verifique su correo y contraseña.', 'error');
   }
 }
@@ -537,15 +823,16 @@ function logout() {
 async function handleReserveClass(claseId) {
   try {
     await GymLifeAPI.reserveClass(claseId, currentUser.usuarioId);
-    showToast('Cupo reservado con exito', 'success');
+    showToast('¡Cupo reservado con éxito!', 'success');
     renderView(currentTab);
   } catch (err) {
-    showToast('No se pudo reservar el cupo', 'error');
+    showToast(err.message || 'No se pudo reservar el cupo', 'error');
   }
 }
 
 async function handleMarkAttendance(claseId) {
-  const qrCode = `GYMLIFE-PASS-USER-${currentUser.usuarioId}`;
+  const qrToken = currentUser.qrToken || currentUser.usuarioId;
+  const qrCode = `GYMLIFE-PASS-${qrToken}`;
   
   try {
     // Intentar registrar la asistencia con el pase QR del usuario
@@ -584,7 +871,7 @@ function showQrSuccessModal(title, detail) {
         <h3 class="text-xl font-bold text-white mb-1">${title}</h3>
         <p class="text-xs text-slate-300 mb-4">${detail}</p>
         <div class="p-3 bg-slate-900/90 rounded-2xl border border-slate-800 text-[11px] font-mono text-emerald-400 mb-4">
-          CODIGO QR: GYMLIFE-PASS-USER-${currentUser.usuarioId}
+          CODIGO QR: GYMLIFE-PASS-${currentUser?.qrToken || currentUser?.usuarioId}
         </div>
         <button onclick="document.getElementById('qr-success-modal').remove()" class="w-full py-2.5 bg-gradient-to-r from-emerald-600 to-emerald-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-emerald-500/20 hover:from-emerald-500 hover:to-emerald-600">
           Entendido / Continuar
@@ -595,24 +882,120 @@ function showQrSuccessModal(title, detail) {
   document.body.insertAdjacentHTML('beforeend', modalHtml);
 }
 
+// CHECKOUT & CARD UTILS
+function openCheckoutModal(planName, price, days) {
+  selectedPlanForCheckout = { tipo: planName, monto: price, dias: days };
+  
+  document.getElementById('checkout-plan-title').textContent = planName;
+  document.getElementById('checkout-plan-duration').textContent = `Vigencia: ${days} Días`;
+  document.getElementById('checkout-plan-price').textContent = `$${price.toFixed(2)}`;
+  document.getElementById('btn-pay-amount').textContent = `$${price.toFixed(2)}`;
+
+  if (currentUser) {
+    document.getElementById('card-holder-name').value = currentUser.nombre.toUpperCase();
+  }
+
+  openModal('modal-payment');
+}
+
+function formatCardNumber(input) {
+  let val = input.value.replace(/\D/g, '');
+  val = val.substring(0, 16);
+  input.value = val.replace(/(.{4})/g, '$1 ').trim();
+}
+
+function formatCardExp(input) {
+  let val = input.value.replace(/\D/g, '');
+  if (val.length >= 2) {
+    input.value = val.substring(0, 2) + '/' + val.substring(2, 4);
+  } else {
+    input.value = val;
+  }
+}
+
 async function submitPaymentForm(e) {
   e.preventDefault();
-  const membershipId = document.getElementById('pay-membership-id').value;
-  const monto = document.getElementById('pay-amount').value;
-  const metodoPago = document.getElementById('pay-method').value;
+
+  const btn = document.getElementById('btn-submit-payment');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fa-solid fa-spinner animate-spin"></i> Procesando Pago con el Banco...';
 
   try {
-    await GymLifeAPI.registerPayment(membershipId, {
-      monto,
-      metodoPago,
-      fecha: new Date().toISOString()
+    const hoy = new Date();
+    const fechaInicioStr = hoy.toISOString().split('T')[0];
+    
+    // Obtener membresías actuales para calcular extensión acumulativa (Rollover)
+    let fechaBase = hoy;
+    try {
+      const mList = await GymLifeAPI.getMembershipsByUser(currentUser.usuarioId);
+      const act = mList.find(m => m.estado === 'ACTIVA');
+      if (act && act.fechaFin) {
+        const finActual = new Date(act.fechaFin);
+        if (finActual > hoy) {
+          fechaBase = finActual; // Si aún le quedan días, sumar desde su vencimiento actual
+        }
+      }
+    } catch (err) {}
+
+    const fechaFin = new Date(fechaBase);
+    fechaFin.setDate(fechaBase.getDate() + (selectedPlanForCheckout.dias || 30));
+    const fechaFinStr = fechaFin.toISOString().split('T')[0];
+
+    // 1. Crear / Actualizar Membresia en MySQL mediante backend
+    const nuevaMembresia = await GymLifeAPI.createMembership(currentUser.usuarioId, {
+      tipo: selectedPlanForCheckout.tipo,
+      fechaInicio: fechaInicioStr,
+      fechaFin: fechaFinStr,
+      estado: 'ACTIVA'
     });
+
+    // 2. Registrar el Pago en la BD
+    if (nuevaMembresia && nuevaMembresia.idMembresia) {
+      await GymLifeAPI.registerPayment(nuevaMembresia.idMembresia, {
+        monto: selectedPlanForCheckout.monto,
+        metodoPago: 'TARJETA',
+        fecha: new Date().toISOString()
+      });
+    }
+
     closeModal('modal-payment');
-    showToast('Pago registrado correctamente', 'success');
+    
+    // Modal de Ticket Comprobante de Compra Exitosa
+    showPaymentSuccessModal(selectedPlanForCheckout.tipo, selectedPlanForCheckout.monto, fechaFinStr);
+    
     renderView(currentTab);
   } catch (err) {
-    showToast('Error al procesar el pago', 'error');
+    showToast(err.message || 'Error al procesar la transacción bancaria', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = `<i class="fa-solid fa-lock"></i> <span>Pagar <span id="btn-pay-amount">$${selectedPlanForCheckout.monto}</span> Seguramente</span>`;
   }
+}
+
+function showPaymentSuccessModal(planName, price, expiryDate) {
+  const modalHtml = `
+    <div id="payment-receipt-modal" class="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4">
+      <div class="glass-card w-full max-w-sm p-6 rounded-3xl border border-emerald-500/40 text-center relative shadow-2xl">
+        <div class="w-16 h-16 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 flex items-center justify-center mx-auto mb-4 text-3xl">
+          <i class="fa-solid fa-check"></i>
+        </div>
+        <h3 class="text-xl font-bold text-white mb-1">¡Pago Aprobado Exitosamente!</h3>
+        <p class="text-xs text-slate-300 mb-4">Se ha activado tu suscripción y se envió tu comprobante por correo.</p>
+        
+        <div class="bg-slate-900 p-4 rounded-2xl border border-slate-800 text-left space-y-2 mb-5">
+          <div class="flex justify-between text-xs"><span class="text-slate-400">Plan:</span><strong class="text-white font-bold">${planName}</strong></div>
+          <div class="flex justify-between text-xs"><span class="text-slate-400">Monto Cobrado:</span><strong class="text-emerald-400 font-bold">$${price}</strong></div>
+          <div class="flex justify-between text-xs"><span class="text-slate-400">Válido Hasta:</span><strong class="text-slate-200">${expiryDate}</strong></div>
+          <div class="flex justify-between text-xs"><span class="text-slate-400">Estado Pase QR:</span><strong class="text-emerald-400">ACTIVADO</strong></div>
+        </div>
+
+        <button onclick="document.getElementById('payment-receipt-modal').remove()" class="w-full py-2.5 bg-gradient-to-r from-emerald-600 to-emerald-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-emerald-500/20">
+          Entendido / Ir al Inicio
+        </button>
+      </div>
+    </div>
+  `;
+  document.body.insertAdjacentHTML('beforeend', modalHtml);
 }
 
 async function submitClassForm(e) {
@@ -631,6 +1014,31 @@ async function submitClassForm(e) {
   }
 }
 
+async function openAssignRoutineModal() {
+  openModal('modal-routine');
+  const select = document.getElementById('routine-miembro-id');
+  if (!select) return;
+
+  select.innerHTML = '<option value="">Cargando socios...</option>';
+
+  try {
+    const users = await GymLifeAPI.getUsers();
+    // Filtrar solo socios/miembros o todos los usuarios elegibles
+    const socios = users.filter(u => u.rol === 'MIEMBRO' || u.idUsuario !== currentUser.usuarioId);
+
+    if (socios.length === 0) {
+      select.innerHTML = '<option value="">No hay socios registrados</option>';
+      return;
+    }
+
+    select.innerHTML = socios.map(s => `
+      <option value="${s.idUsuario}">${s.nombre} (${s.email})</option>
+    `).join('');
+  } catch (err) {
+    select.innerHTML = '<option value="">Error cargando socios</option>';
+  }
+}
+
 async function submitRoutineForm(e) {
   e.preventDefault();
   const miembroId = document.getElementById('routine-miembro-id').value;
@@ -638,27 +1046,97 @@ async function submitRoutineForm(e) {
   const nivel = document.getElementById('routine-nivel').value;
   const duracion = document.getElementById('routine-duracion').value;
 
+  if (!miembroId) {
+    showToast('Selecciona un socio válido', 'error');
+    return;
+  }
+
   try {
     await GymLifeAPI.createRoutine(currentUser.usuarioId, miembroId, { nombre, nivel, duracion });
     closeModal('modal-routine');
-    showToast('Rutina asignada al miembro', 'success');
+    showToast('¡Rutina asignada exitosamente al socio!', 'success');
     renderView(currentTab);
   } catch (err) {
-    showToast('Error al asignar la rutina', 'error');
+    showToast(err.message || 'Error al asignar la rutina', 'error');
   }
 }
 
-async function handleAssignMembership(userId) {
+// ADMIN MANUAL ASSIGNMENT UTILS
+function openAdminAssignPlanModal(userId, nombreUsuario) {
+  document.getElementById('admin-assign-user-id').value = userId;
+  document.getElementById('admin-assign-user-name').textContent = `Para: ${nombreUsuario}`;
+  updateAdminPlanDetails();
+  openModal('modal-admin-assign-plan');
+}
+
+function updateAdminPlanDetails() {
+  const select = document.getElementById('admin-assign-plan-type');
+  const selectedOpt = select.options[select.selectedIndex];
+  const days = selectedOpt.getAttribute('data-days') || 30;
+  document.getElementById('admin-assign-duration-text').textContent = `${days} Días de Acceso`;
+}
+
+async function submitAdminAssignPlan(e) {
+  e.preventDefault();
+  const userId = document.getElementById('admin-assign-user-id').value;
+  const selectPlan = document.getElementById('admin-assign-plan-type');
+  const selectedOpt = selectPlan.options[selectPlan.selectedIndex];
+  
+  const planType = selectPlan.value;
+  const days = parseInt(selectedOpt.getAttribute('data-days') || '30');
+  const price = parseFloat(selectedOpt.getAttribute('data-price') || '0');
+  const paymentMethod = document.getElementById('admin-assign-payment-method').value;
+
+  const btn = document.getElementById('btn-submit-admin-assign');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fa-solid fa-spinner animate-spin"></i> Registrando en Sistema...';
+
   try {
-    await GymLifeAPI.createMembership(userId, {
-      tipo: 'Mensual Gold',
-      fechaInicio: '2025-05-01',
-      fechaFin: '2025-06-01',
+    const hoy = new Date();
+    const fechaInicioStr = hoy.toISOString().split('T')[0];
+    
+    // Extensión acumulativa de vigencia (Rollover) también en gestión de Admin
+    let fechaBase = hoy;
+    try {
+      const mList = await GymLifeAPI.getMembershipsByUser(userId);
+      const act = mList.find(m => m.estado === 'ACTIVA');
+      if (act && act.fechaFin) {
+        const finActual = new Date(act.fechaFin);
+        if (finActual > hoy) {
+          fechaBase = finActual; // Sumar días a partir de su vencimiento actual
+        }
+      }
+    } catch (err) {}
+
+    const fechaFin = new Date(fechaBase);
+    fechaFin.setDate(fechaBase.getDate() + days);
+    const fechaFinStr = fechaFin.toISOString().split('T')[0];
+
+    const nuevaMembresia = await GymLifeAPI.createMembership(userId, {
+      tipo: planType,
+      fechaInicio: fechaInicioStr,
+      fechaFin: fechaFinStr,
       estado: 'ACTIVA'
     });
-    showToast(`Membresia asignada al usuario #${userId}`, 'success');
+
+    if (nuevaMembresia && nuevaMembresia.idMembresia) {
+      // Mapear cortesía a valor enum válido
+      const validPaymentMethod = paymentMethod === 'CORTESIA' ? 'EFECTIVO' : paymentMethod;
+      await GymLifeAPI.registerPayment(nuevaMembresia.idMembresia, {
+        monto: price,
+        metodoPago: validPaymentMethod,
+        fecha: new Date().toISOString()
+      });
+    }
+
+    closeModal('modal-admin-assign-plan');
+    showToast(`¡Plan '${planType}' registrado y activado exitosamente!`, 'success');
+    renderView('usuarios');
   } catch (err) {
-    showToast('Error al asignar membresia', 'error');
+    showToast(err.message || 'Error al registrar la membresía', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fa-solid fa-circle-check"></i> <span>Registrar y Activar Membresía</span>';
   }
 }
 
@@ -675,17 +1153,73 @@ function openQrPassModal() {
   document.getElementById('qr-modal').classList.remove('hidden');
   const qrContainer = document.getElementById('qrcode-canvas');
   qrContainer.innerHTML = '';
-  const text = `GYMLIFE-PASS-${currentUser?.usuarioId || 1}`;
-  document.getElementById('qr-code-text').textContent = text;
-  new QRCode(qrContainer, {
-    text: text,
-    width: 160,
-    height: 160
+  
+  const token = (currentUser?.qrToken && currentUser.qrToken.length > 10) 
+    ? currentUser.qrToken 
+    : (currentUser?.usuarioId || 'SECURE');
+    
+  const cleanToken = token.startsWith('GYMLIFE-PASS-') ? token : `GYMLIFE-PASS-${token}`;
+  
+  // Obtener URL Base desde application.properties (o fallback)
+  let appBaseUrl = window.location.origin;
+  GymLifeAPI.getConfigInfo().then(config => {
+    if (config?.baseUrl) appBaseUrl = config.baseUrl;
+    const targetUrl = `${appBaseUrl}/validar-acceso.html?token=${cleanToken}`;
+    document.getElementById('qr-code-text').textContent = cleanToken;
+    new QRCode(qrContainer, {
+      text: targetUrl,
+      width: 160,
+      height: 160
+    });
+  }).catch(() => {
+    const targetUrl = `${appBaseUrl}/validar-acceso.html?token=${cleanToken}`;
+    document.getElementById('qr-code-text').textContent = cleanToken;
+    new QRCode(qrContainer, {
+      text: targetUrl,
+      width: 160,
+      height: 160
+    });
   });
 }
 
 function closeQrPassModal() {
   document.getElementById('qr-modal').classList.add('hidden');
+}
+
+async function handleRegenerateQr(targetUserId = null) {
+  const userId = targetUserId || currentUser?.usuarioId;
+  if (!userId) {
+    showToast('No se identificó el usuario', 'error');
+    return;
+  }
+
+  const btn = document.getElementById('btn-regenerate-qr');
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner animate-spin"></i> Regenerando...';
+  }
+
+  try {
+    const response = await GymLifeAPI.regenerateQr(userId);
+    const newToken = response.nuevoQrToken;
+
+    if (!targetUserId || targetUserId === currentUser?.usuarioId) {
+      if (currentUser) {
+        currentUser.qrToken = newToken;
+        localStorage.setItem('gymlife_user', JSON.stringify(currentUser));
+      }
+      openQrPassModal();
+    }
+
+    showToast('¡Nuevo código QR generado y enviado a tu correo!', 'success');
+  } catch (err) {
+    showToast(err.message || 'Error al regenerar código QR', 'error');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fa-solid fa-arrows-rotate"></i> <span>Regenerar QR (Seguridad)</span>';
+    }
+  }
 }
 
 // TOAST NOTIFICATIONS

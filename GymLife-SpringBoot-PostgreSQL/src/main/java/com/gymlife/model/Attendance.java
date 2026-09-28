@@ -20,8 +20,8 @@ public class Attendance {
     @JoinColumn(name = "usuario_id")
     private User usuario;
 
-    @ManyToOne(optional = false)
-    @JoinColumn(name = "clase_id")
+    @ManyToOne(optional = true)
+    @JoinColumn(name = "clase_id", nullable = true)
     private GroupClass clase;
 
     public Attendance() {

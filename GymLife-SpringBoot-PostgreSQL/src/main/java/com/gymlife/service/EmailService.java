@@ -15,25 +15,29 @@ public class EmailService {
     @Value("${spring.mail.username:gymlife@gmail.com}")
     private String fromEmail;
 
+    @Value("${gymlife.app.base-url:http://localhost:8080}")
+    private String baseUrl;
+
     public EmailService(JavaMailSender mailSender) {
         this.mailSender = mailSender;
     }
 
     /**
-     * Envía un correo HTML estilizado de Bienvenida con el Pase Digital Código QR incrustado
+     * Envía un correo HTML estilizado de Bienvenida con el Pase Digital Código QR incrustado (Usa UUID único)
      */
     @Async
-    public void enviarCorreoBienvenida(String destinatario, String nombreUsuario, Long idUsuario) {
+    public void enviarCorreoBienvenida(String destinatario, String nombreUsuario, String qrToken) {
         try {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
 
-            helper.setFrom(fromEmail);
+            helper.setFrom(new jakarta.mail.internet.InternetAddress(fromEmail, "GymLife Fitness Platform"));
             helper.setTo(destinatario);
             helper.setSubject("¡Bienvenido/a a GymLife! Tu Pase Digital QR está Listo");
 
-            String qrCodeText = "GYMLIFE-PASS-USER-" + idUsuario;
-            String qrImageUrl = "https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=" + qrCodeText;
+            String qrCodeText = "GYMLIFE-PASS-" + qrToken;
+            String passValidationUrl = baseUrl + "/validar-acceso.html?token=" + qrCodeText;
+            String qrImageUrl = "https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=" + java.net.URLEncoder.encode(passValidationUrl, java.nio.charset.StandardCharsets.UTF_8);
 
             String htmlContent = """
                 <!DOCTYPE html>
@@ -73,7 +77,7 @@ public class EmailService {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
 
-            helper.setFrom(fromEmail);
+            helper.setFrom(new jakarta.mail.internet.InternetAddress(fromEmail, "GymLife Fitness Platform"));
             helper.setTo(destinatario);
             helper.setSubject("Confirmación de Reserva - " + nombreClase);
 
@@ -112,7 +116,7 @@ public class EmailService {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
 
-            helper.setFrom(fromEmail);
+            helper.setFrom(new jakarta.mail.internet.InternetAddress(fromEmail, "GymLife Fitness Platform"));
             helper.setTo(destinatario);
             helper.setSubject("Comprobante de Pago de Membresía - GymLife");
 
@@ -139,6 +143,47 @@ public class EmailService {
             mailSender.send(message);
         } catch (Exception e) {
             System.err.println("Error al enviar correo de pago: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Envía correo de notificación cuando un Entrenador le asigna una nueva rutina al Socio
+     */
+    @Async
+    public void enviarCorreoRutinaAsignada(String destinatario, String nombreUsuario, String nombreRutina, String nivel, Integer duracion, String nombreEntrenador) {
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+
+            helper.setFrom(new jakarta.mail.internet.InternetAddress(fromEmail, "GymLife Fitness Platform"));
+            helper.setTo(destinatario);
+            helper.setSubject("💪 ¡Nueva Rutina de Entrenamiento Asignada! - GymLife");
+
+            String htmlContent = """
+                <!DOCTYPE html>
+                <html>
+                <body style="font-family: Arial, sans-serif; background-color: #0f172a; color: #f8fafc; padding: 20px;">
+                    <div style="max-width: 500px; margin: 0 auto; background-color: #1e293b; padding: 30px; border-radius: 20px; border: 1px solid #334155;">
+                        <h2 style="color: #10b981;">¡Tienes un Nuevo Plan de Ejercicios!</h2>
+                        <p style="color: #e2e8f0; font-size: 14px;">Hola <strong>%s</strong>, tu entrenador personal <strong>%s</strong> te ha diseñado una nueva rutina.</p>
+                        
+                        <div style="background-color: #0f172a; padding: 15px; border-radius: 12px; border-left: 4px solid #10b981; margin: 20px 0;">
+                            <p style="margin: 5px 0; color: #ffffff; font-size: 16px; font-weight: bold;">%s</p>
+                            <p style="margin: 5px 0; color: #94a3b8; font-size: 13px;">Nivel: <strong style="color: #06b6d4;">%s</strong> | Duración: <strong style="color: #ffffff;">%d min</strong></p>
+                        </div>
+
+                        <p style="color: #cbd5e1; font-size: 13px;">Ingresa a la app en la sección <strong>"Mis Rutinas"</strong> para consultar la estructura de tu entrenamiento.</p>
+                        <hr style="border: none; border-top: 1px solid #334155; margin: 20px 0;">
+                        <p style="color: #64748b; font-size: 11px;">GymLife Fitness Platform &copy; 2026</p>
+                    </div>
+                </body>
+                </html>
+                """.formatted(nombreUsuario, nombreEntrenador, nombreRutina, nivel, duracion);
+
+            helper.setText(htmlContent, true);
+            mailSender.send(message);
+        } catch (Exception e) {
+            System.err.println("Error al enviar correo de rutina: " + e.getMessage());
         }
     }
 }

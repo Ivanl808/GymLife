@@ -27,10 +27,13 @@ public class UserService {
         if (user.getRol() == null) {
             user.setRol(Role.MIEMBRO);
         }
+        if (user.getQrToken() == null || user.getQrToken().isBlank()) {
+            user.setQrToken(java.util.UUID.randomUUID().toString());
+        }
         User savedUser = repository.save(user);
 
-        // Envío automático de correo de bienvenida con Pase QR
-        emailService.enviarCorreoBienvenida(savedUser.getEmail(), savedUser.getNombre(), savedUser.getIdUsuario());
+        // Envío automático de correo de bienvenida con Pase QR seguro (UUID)
+        emailService.enviarCorreoBienvenida(savedUser.getEmail(), savedUser.getNombre(), savedUser.getQrToken());
 
         return savedUser;
     }
@@ -48,5 +51,22 @@ public class UserService {
 
     public List<User> listar() {
         return repository.findAll();
+    }
+
+    public User buscarPorQrToken(String qrToken) {
+        return repository.findByQrToken(qrToken)
+                .orElseThrow(() -> new IllegalArgumentException("Código QR inválido o no encontrado"));
+    }
+
+    public User regenerarQrToken(Long idUsuario) {
+        User user = repository.findById(idUsuario)
+                .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado"));
+        user.setQrToken(java.util.UUID.randomUUID().toString());
+        User updatedUser = repository.save(user);
+
+        // Opcional: Reenviar correo con el nuevo pase
+        emailService.enviarCorreoBienvenida(updatedUser.getEmail(), updatedUser.getNombre(), updatedUser.getQrToken());
+
+        return updatedUser;
     }
 }
