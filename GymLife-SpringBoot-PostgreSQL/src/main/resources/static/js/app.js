@@ -164,10 +164,107 @@ async function renderDashboardView(container) {
   const memberships = currentUser ? await GymLifeAPI.getMembershipsByUser(currentUser.usuarioId) : [];
   const attendances = currentUser ? await GymLifeAPI.getAttendancesByUser(currentUser.usuarioId) : [];
 
+  const isAdmin = currentUser?.rol === 'ADMINISTRADOR';
   const isStaff = currentUser?.rol === 'ADMINISTRADOR' || currentUser?.rol === 'ENTRENADOR';
   const activeMembership = memberships.find(m => m.estado === 'ACTIVA') || memberships[0];
 
+  // Cargar datos financieros globales para Administrador
+  let allUsers = [];
+  let totalRevenue = 0;
+  let activeMembersCount = 0;
+  let expiredMembersCount = 0;
+
+  if (isAdmin) {
+    try {
+      allUsers = await GymLifeAPI.getUsers();
+      for (const u of allUsers) {
+        if (u.rol === 'MIEMBRO') {
+          const mList = await GymLifeAPI.getMembershipsByUser(u.idUsuario);
+          const act = mList.find(m => m.estado === 'ACTIVA');
+          if (act) {
+            activeMembersCount++;
+            // Sumar ingresos estimados por plan
+            if (act.tipo.includes('Trimestral')) totalRevenue += 129.99;
+            else if (act.tipo.includes('Anual')) totalRevenue += 399.99;
+            else totalRevenue += 49.99;
+          } else {
+            expiredMembersCount++;
+          }
+        }
+      }
+    } catch(e) {}
+  }
+
   container.innerHTML = `
+    ${isAdmin ? `
+      <!-- PANEL EJECUTIVO FINANCIERO & CONTROL GERENCIAL (ADMIN) -->
+      <div class="mb-6">
+        <div class="flex items-center justify-between mb-3">
+          <div>
+            <h3 class="text-lg font-black text-white flex items-center gap-2">
+              <i class="fa-solid fa-chart-line text-emerald-400"></i>
+              <span>Panel Ejecutivo de Control Financiero</span>
+            </h3>
+            <p class="text-xs text-slate-400">Métricas de ingresos, estado de cobranza y aforo en tiempo real</p>
+          </div>
+          <span class="px-3 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-full text-xs font-bold uppercase flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            Finanzas en Vivo
+          </span>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <!-- KPI 1: Recaudación -->
+          <div class="glass-card p-5 rounded-2xl border border-emerald-500/30 bg-emerald-950/20">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-xs text-slate-400 font-bold uppercase tracking-wider">Recaudación Estimada</span>
+              <div class="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-sm">
+                <i class="fa-solid fa-sack-dollar"></i>
+              </div>
+            </div>
+            <h4 class="text-2xl font-black text-emerald-400">$${totalRevenue.toFixed(2)}</h4>
+            <p class="text-[10px] text-slate-400 mt-1"><i class="fa-solid fa-circle-check text-emerald-500 mr-1"></i>Ingresos por cuotas activas</p>
+          </div>
+
+          <!-- KPI 2: Socios al Día -->
+          <div onclick="switchTab('usuarios')" class="glass-card glass-card-hover p-5 rounded-2xl border border-slate-800 cursor-pointer">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-xs text-slate-400 font-bold uppercase tracking-wider">Socios Al Día</span>
+              <div class="w-8 h-8 rounded-lg bg-brand-500/20 text-brand-400 flex items-center justify-center text-sm">
+                <i class="fa-solid fa-user-check"></i>
+              </div>
+            </div>
+            <h4 class="text-2xl font-black text-white">${activeMembersCount}</h4>
+            <p class="text-[10px] text-emerald-400 mt-1 font-bold"><i class="fa-solid fa-arrow-up mr-1"></i>Acceso a torniquete habilitado</p>
+          </div>
+
+          <!-- KPI 3: Cartera Morosa / Vencidos -->
+          <div onclick="switchTab('usuarios')" class="glass-card glass-card-hover p-5 rounded-2xl border border-slate-800 cursor-pointer">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-xs text-slate-400 font-bold uppercase tracking-wider">Membresías Vencidas</span>
+              <div class="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center text-sm">
+                <i class="fa-solid fa-clock-rotate-left"></i>
+              </div>
+            </div>
+            <h4 class="text-2xl font-black text-amber-400">${expiredMembersCount}</h4>
+            <p class="text-[10px] text-amber-400 mt-1 font-semibold">Requieren cobro en recepción &rarr;</p>
+          </div>
+
+          <!-- KPI 4: Total Atletas Registrados -->
+          <div onclick="switchTab('usuarios')" class="glass-card glass-card-hover p-5 rounded-2xl border border-slate-800 cursor-pointer">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-xs text-slate-400 font-bold uppercase tracking-wider">Total Atletas</span>
+              <div class="w-8 h-8 rounded-lg bg-purple-500/20 text-purple-400 flex items-center justify-center text-sm">
+                <i class="fa-solid fa-users"></i>
+              </div>
+            </div>
+            <h4 class="text-2xl font-black text-white">${allUsers.filter(u => u.rol === 'MIEMBRO').length}</h4>
+            <p class="text-[10px] text-purple-400 mt-1 font-semibold">Ver directorio completo &rarr;</p>
+          </div>
+        </div>
+      </div>
+    ` : ''}
+
     <!-- Top Stats Cards Interactivas -->
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       <div onclick="switchTab('membresia')" class="glass-card glass-card-hover p-5 rounded-2xl border border-slate-800 flex items-center gap-4 cursor-pointer transition-all">
