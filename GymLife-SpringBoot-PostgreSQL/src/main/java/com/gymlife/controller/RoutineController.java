@@ -55,7 +55,9 @@ public class RoutineController {
                 savedRoutine.getNombre(),
                 savedRoutine.getNivel(),
                 savedRoutine.getDuracion(),
-                entrenador.getNombre()
+                entrenador.getNombre(),
+                savedRoutine.getObjetivo(),
+                savedRoutine.getInstrucciones()
             );
         } catch (Exception e) {
             System.err.println("Error enviando correo de rutina: " + e.getMessage());

@@ -150,35 +150,48 @@ public class EmailService {
      * Envía correo de notificación cuando un Entrenador le asigna una nueva rutina al Socio
      */
     @Async
-    public void enviarCorreoRutinaAsignada(String destinatario, String nombreUsuario, String nombreRutina, String nivel, Integer duracion, String nombreEntrenador) {
+    public void enviarCorreoRutinaAsignada(String destinatario, String nombreUsuario, String nombreRutina, String nivel, Integer duracion, String nombreEntrenador, String objetivo, String instrucciones) {
         try {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
 
             helper.setFrom(new jakarta.mail.internet.InternetAddress(fromEmail, "GymLife Fitness Platform"));
             helper.setTo(destinatario);
-            helper.setSubject("💪 ¡Nueva Rutina de Entrenamiento Asignada! - GymLife");
+            helper.setSubject("💪 ¡Nueva Rutina Personalizada Asignada! - GymLife");
 
             String htmlContent = """
                 <!DOCTYPE html>
                 <html>
                 <body style="font-family: Arial, sans-serif; background-color: #0f172a; color: #f8fafc; padding: 20px;">
-                    <div style="max-width: 500px; margin: 0 auto; background-color: #1e293b; padding: 30px; border-radius: 20px; border: 1px solid #334155;">
-                        <h2 style="color: #10b981;">¡Tienes un Nuevo Plan de Ejercicios!</h2>
-                        <p style="color: #e2e8f0; font-size: 14px;">Hola <strong>%s</strong>, tu entrenador personal <strong>%s</strong> te ha diseñado una nueva rutina.</p>
+                    <div style="max-width: 520px; margin: 0 auto; background-color: #1e293b; padding: 30px; border-radius: 20px; border: 1px solid #334155;">
+                        <h2 style="color: #10b981; margin-top: 0;">¡Tienes un Nuevo Plan de Ejercicios!</h2>
+                        <p style="color: #e2e8f0; font-size: 14px;">Hola <strong>%s</strong>, tu entrenador personal <strong>%s</strong> te ha diseñado una rutina personalizada.</p>
                         
-                        <div style="background-color: #0f172a; padding: 15px; border-radius: 12px; border-left: 4px solid #10b981; margin: 20px 0;">
-                            <p style="margin: 5px 0; color: #ffffff; font-size: 16px; font-weight: bold;">%s</p>
-                            <p style="margin: 5px 0; color: #94a3b8; font-size: 13px;">Nivel: <strong style="color: #06b6d4;">%s</strong> | Duración: <strong style="color: #ffffff;">%d min</strong></p>
+                        <div style="background-color: #0f172a; padding: 18px; border-radius: 12px; border-left: 4px solid #10b981; margin: 20px 0;">
+                            <p style="margin: 0 0 8px 0; color: #ffffff; font-size: 16px; font-weight: bold;">%s</p>
+                            <p style="margin: 0 0 6px 0; color: #94a3b8; font-size: 13px;">🎯 Objetivo: <strong style="color: #10b981;">%s</strong></p>
+                            <p style="margin: 0; color: #94a3b8; font-size: 13px;">⚡ Nivel: <strong style="color: #06b6d4;">%s</strong> | ⏱️ Duración: <strong style="color: #ffffff;">%d min/sesión</strong></p>
                         </div>
 
-                        <p style="color: #cbd5e1; font-size: 13px;">Ingresa a la app en la sección <strong>"Mis Rutinas"</strong> para consultar la estructura de tu entrenamiento.</p>
+                        %s
+
+                        <p style="color: #cbd5e1; font-size: 13px;">Ingresa a la app en la sección <strong>"Mis Rutinas"</strong> para consultar el desglose de ejercicios.</p>
                         <hr style="border: none; border-top: 1px solid #334155; margin: 20px 0;">
                         <p style="color: #64748b; font-size: 11px;">GymLife Fitness Platform &copy; 2026</p>
                     </div>
                 </body>
                 </html>
-                """.formatted(nombreUsuario, nombreEntrenador, nombreRutina, nivel, duracion);
+                """.formatted(
+                    nombreUsuario, 
+                    nombreEntrenador, 
+                    nombreRutina, 
+                    objetivo != null ? objetivo : "Acondicionamiento General", 
+                    nivel, 
+                    duracion,
+                    instrucciones != null && !instrucciones.isBlank() 
+                        ? "<div style='background:#1e293b; padding:12px; border-radius:10px; font-size:12px; color:#cbd5e1; margin-bottom:15px;'><strong>📋 Indicaciones del Coach:</strong><br/>" + instrucciones.replace("\n", "<br/>") + "</div>" 
+                        : ""
+                );
 
             helper.setText(htmlContent, true);
             mailSender.send(message);

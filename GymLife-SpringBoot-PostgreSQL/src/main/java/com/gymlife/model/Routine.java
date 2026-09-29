@@ -15,6 +15,12 @@ public class Routine {
     private String nivel;
     private Integer duracion;
 
+    private String objetivo;
+    private String frecuencia;
+
+    @Column(length = 2000)
+    private String instrucciones;
+
     @ManyToOne(optional = false)
     @JoinColumn(name = "entrenador_id")
     private User entrenador;
@@ -26,11 +32,14 @@ public class Routine {
     public Routine() {
     }
 
-    public Routine(Long idRutina, String nombre, String nivel, Integer duracion, User entrenador, User miembro) {
+    public Routine(Long idRutina, String nombre, String nivel, Integer duracion, String objetivo, String frecuencia, String instrucciones, User entrenador, User miembro) {
         this.idRutina = idRutina;
         this.nombre = nombre;
         this.nivel = nivel;
         this.duracion = duracion;
+        this.objetivo = objetivo;
+        this.frecuencia = frecuencia;
+        this.instrucciones = instrucciones;
         this.entrenador = entrenador;
         this.miembro = miembro;
     }
@@ -65,6 +74,30 @@ public class Routine {
 
     public void setDuracion(Integer duracion) {
         this.duracion = duracion;
+    }
+
+    public String getObjetivo() {
+        return objetivo;
+    }
+
+    public void setObjetivo(String objetivo) {
+        this.objetivo = objetivo;
+    }
+
+    public String getFrecuencia() {
+        return frecuencia;
+    }
+
+    public void setFrecuencia(String frecuencia) {
+        this.frecuencia = frecuencia;
+    }
+
+    public String getInstrucciones() {
+        return instrucciones;
+    }
+
+    public void setInstrucciones(String instrucciones) {
+        this.instrucciones = instrucciones;
     }
 
     public User getEntrenador() {
@@ -126,10 +159,6 @@ public class Routine {
         public RoutineBuilder miembro(User miembro) {
             this.miembro = miembro;
             return this;
-        }
-
-        public Routine build() {
-            return new Routine(idRutina, nombre, nivel, duracion, entrenador, miembro);
         }
     }
 }

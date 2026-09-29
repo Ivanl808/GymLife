@@ -412,14 +412,33 @@ async function renderRoutinesView(container) {
         <div class="glass-card p-6 rounded-3xl border border-slate-800 relative flex flex-col justify-between">
           <div>
             <div class="flex items-start justify-between mb-3">
-              <span class="px-2.5 py-1 text-[10px] font-extrabold uppercase rounded-lg bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">${r.nivel || 'General'}</span>
+              <div class="flex items-center gap-2">
+                <span class="px-2.5 py-1 text-[10px] font-extrabold uppercase rounded-lg bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">${r.nivel || 'General'}</span>
+                ${r.frecuencia ? `<span class="px-2.5 py-1 text-[10px] font-bold uppercase rounded-lg bg-brand-500/10 text-brand-400 border border-brand-500/20">${r.frecuencia}</span>` : ''}
+              </div>
               <span class="text-xs font-bold text-slate-300"><i class="fa-regular fa-clock text-brand-500 mr-1"></i>${r.duracion || 45} min</span>
             </div>
-            <h3 class="text-lg font-bold text-white mb-2">${r.nombre}</h3>
+
+            <h3 class="text-xl font-bold text-white mb-2">${r.nombre}</h3>
+            
+            ${r.objetivo ? `
+              <div class="text-xs text-brand-400 font-bold mb-3 flex items-center gap-1.5">
+                <i class="fa-solid fa-bullseye"></i>
+                <span>Objetivo: ${r.objetivo}</span>
+              </div>
+            ` : ''}
+
             ${r.miembro ? `
               <div class="p-2.5 bg-slate-900 rounded-xl border border-slate-800 text-xs text-slate-300 mb-3 flex items-center gap-2">
                 <i class="fa-solid fa-user text-brand-500"></i>
                 <span>Socio Asignado: <strong class="text-white">${r.miembro.nombre}</strong> (${r.miembro.email})</span>
+              </div>
+            ` : ''}
+
+            ${r.instrucciones ? `
+              <div class="p-3 bg-slate-950/80 rounded-2xl border border-slate-800/80 text-xs text-slate-300 space-y-1.5 mb-3">
+                <span class="font-bold text-slate-200 block text-[11px] uppercase tracking-wider text-slate-400"><i class="fa-solid fa-clipboard-list mr-1"></i>Estructura & Ejercicios:</span>
+                <p class="whitespace-pre-line text-slate-300 font-mono text-[11px] leading-relaxed">${r.instrucciones}</p>
               </div>
             ` : ''}
           </div>
@@ -1076,21 +1095,43 @@ async function submitRoutineForm(e) {
   e.preventDefault();
   const miembroId = document.getElementById('routine-miembro-id').value;
   const nombre = document.getElementById('routine-nombre').value;
+  const objetivo = document.getElementById('routine-objetivo')?.value || 'Acondicionamiento General';
   const nivel = document.getElementById('routine-nivel').value;
   const duracion = document.getElementById('routine-duracion').value;
+  const frecuencia = document.getElementById('routine-frecuencia')?.value || '3 Días / Sem';
+  const instrucciones = document.getElementById('routine-instrucciones')?.value || '';
 
   if (!miembroId) {
     showToast('Selecciona un socio válido', 'error');
     return;
   }
 
+  const btn = document.getElementById('btn-submit-routine');
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner animate-spin"></i> Asignando y Notificando por Correo...';
+  }
+
   try {
-    await GymLifeAPI.createRoutine(currentUser.usuarioId, miembroId, { nombre, nivel, duracion });
+    await GymLifeAPI.createRoutine(currentUser.usuarioId, miembroId, { 
+      nombre, 
+      objetivo, 
+      nivel, 
+      duracion, 
+      frecuencia, 
+      instrucciones 
+    });
+
     closeModal('modal-routine');
-    showToast('¡Rutina asignada exitosamente al socio!', 'success');
+    showToast('¡Rutina asignada y notificada por correo al socio!', 'success');
     renderView(currentTab);
   } catch (err) {
     showToast(err.message || 'Error al asignar la rutina', 'error');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> <span>Asignar Rutina y Notificar por Correo</span>';
+    }
   }
 }
 
