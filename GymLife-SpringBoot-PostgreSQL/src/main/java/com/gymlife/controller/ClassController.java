@@ -79,6 +79,11 @@ public class ClassController {
         }
     }
 
+    @GetMapping("/asistencias/clase/{claseId}")
+    public ResponseEntity<List<Attendance>> listarAsistenciasPorClase(@PathVariable Long claseId) {
+        return ResponseEntity.ok(service.asistenciasPorClase(claseId));
+    }
+
     @GetMapping("/asistencias/usuario/{usuarioId}")
     public ResponseEntity<List<Attendance>> listarAsistencias(@PathVariable Long usuarioId) {
         return ResponseEntity.ok(service.asistenciasPorUsuario(usuarioId));

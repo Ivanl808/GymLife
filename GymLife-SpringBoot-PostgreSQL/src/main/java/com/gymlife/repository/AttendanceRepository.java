@@ -7,5 +7,6 @@ import java.util.Optional;
 
 public interface AttendanceRepository extends JpaRepository<Attendance, Long> {
     List<Attendance> findByUsuarioIdUsuario(Long usuarioId);
+    List<Attendance> findByClaseIdClase(Long claseId);
     Optional<Attendance> findTopByUsuarioIdUsuarioOrderByFechaDesc(Long usuarioId);
 }

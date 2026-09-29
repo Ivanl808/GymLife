@@ -219,6 +219,10 @@ class GymLifeAPI {
     });
   }
 
+  static getAttendancesByClass(claseId) {
+    return this.request(`/clases/asistencias/clase/${claseId}`);
+  }
+
   static getRoutinesByMember(miembroId) {
     return this.request(`/rutinas/miembro/${miembroId}`);
   }

@@ -33,7 +33,7 @@ public class EmailService {
 
             helper.setFrom(new jakarta.mail.internet.InternetAddress(fromEmail, "GymLife Fitness Platform"));
             helper.setTo(destinatario);
-            helper.setSubject("¡Bienvenido/a a GymLife! Tu Pase Digital QR está Listo");
+            helper.setSubject("¡Bienvenid@ a GymLife! Tu Pase Digital QR está Listo");
 
             String qrCodeText = "GYMLIFE-PASS-" + qrToken;
             String passValidationUrl = baseUrl + "/validar-acceso.html?token=" + qrCodeText;
@@ -44,7 +44,7 @@ public class EmailService {
                 <html>
                 <body style="font-family: Arial, sans-serif; background-color: #0f172a; color: #f8fafc; padding: 20px;">
                     <div style="max-width: 500px; margin: 0 auto; background-color: #1e293b; padding: 30px; border-radius: 20px; border: 1px solid #334155; text-align: center;">
-                        <h2 style="color: #10b981; margin-bottom: 5px;">¡Bienvenido/a, %s!</h2>
+                        <h2 style="color: #10b981; margin-bottom: 5px;">¡Bienvenid@, %s!</h2>
                         <p style="color: #94a3b8; font-size: 14px;">Tu cuenta en GymLife Platform ha sido creada exitosamente.</p>
                         
                         <div style="background-color: #0f172a; padding: 20px; border-radius: 15px; margin: 20px 0;">

@@ -891,7 +891,7 @@ async function handleLogin(e) {
     };
     localStorage.setItem('gymlife_user', JSON.stringify(currentUser));
     document.getElementById('auth-screen').classList.add('hidden');
-    showToast(`¡Bienvenido/a, ${currentUser.nombre}!`, 'success');
+    showToast(`¡Bienvenid@, ${currentUser.nombre}!`, 'success');
     initUserView();
   } catch (err) {
     console.error('[handleLogin Error]:', err);
@@ -1142,33 +1142,44 @@ async function openClassRosterModal(claseId) {
       return;
     }
 
-    // Consultar asistencias ya registradas en esta clase
+    // Consultar asistencias ya registradas de forma persistente en esta clase desde MySQL
     let asistenciasRegistradas = [];
     try {
-      const resAst = await fetch('/api/clases');
-      // Consultar lista de asistencias registradas
-    } catch(e) {}
+      asistenciasRegistradas = await GymLifeAPI.getAttendancesByClass(claseId);
+    } catch(e) {
+      console.warn('Error cargando asistencias previas:', e);
+    }
 
-    listElem.innerHTML = usuariosReservados.map(u => `
-      <div class="p-3.5 bg-slate-900 rounded-2xl border border-slate-800 flex items-center justify-between transition-all" id="roster-row-${u.idUsuario}">
-        <div class="flex items-center gap-3">
-          <div class="w-9 h-9 rounded-xl bg-brand-500/10 border border-brand-500/20 text-brand-400 flex items-center justify-center font-extrabold text-xs">
-            ${u.nombre ? u.nombre.substring(0, 2).toUpperCase() : 'SO'}
+    listElem.innerHTML = usuariosReservados.map(u => {
+      const yaConfirmado = asistenciasRegistradas.some(a => a.usuario && a.usuario.idUsuario === u.idUsuario);
+      
+      return `
+        <div class="p-3.5 bg-slate-900 rounded-2xl border border-slate-800 flex items-center justify-between transition-all" id="roster-row-${u.idUsuario}">
+          <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-xl bg-brand-500/10 border border-brand-500/20 text-brand-400 flex items-center justify-center font-extrabold text-xs">
+              ${u.nombre ? u.nombre.substring(0, 2).toUpperCase() : 'SO'}
+            </div>
+            <div>
+              <h5 class="text-xs font-bold text-white">${u.nombre}</h5>
+              <p class="text-[10px] text-slate-400">${u.email || ''}</p>
+            </div>
           </div>
-          <div>
-            <h5 class="text-xs font-bold text-white">${u.nombre}</h5>
-            <p class="text-[10px] text-slate-400">${u.email || ''}</p>
+
+          <div id="roster-action-container-${u.idUsuario}">
+            ${yaConfirmado ? `
+              <span class="px-2.5 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-extrabold text-[10px] rounded-lg flex items-center gap-1">
+                <i class="fa-solid fa-circle-check text-emerald-400"></i> ASISTENCIA CONFIRMADA
+              </span>
+            ` : `
+              <button onclick="handleCoachMarkCheckIn(${claseId}, ${u.idUsuario}, '${u.nombre}')" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs rounded-xl shadow-lg shadow-emerald-500/20 transition-all flex items-center gap-1.5">
+                <i class="fa-solid fa-clipboard-check"></i>
+                <span>Confirmar Asistencia</span>
+              </button>
+            `}
           </div>
         </div>
-
-        <div id="roster-action-container-${u.idUsuario}">
-          <button onclick="handleCoachMarkCheckIn(${claseId}, ${u.idUsuario}, '${u.nombre}')" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs rounded-xl shadow-lg shadow-emerald-500/20 transition-all flex items-center gap-1.5">
-            <i class="fa-solid fa-clipboard-check"></i>
-            <span>Confirmar Asistencia</span>
-          </button>
-        </div>
-      </div>
-    `).join('');
+      `;
+    }).join('');
   } catch (err) {
     listElem.innerHTML = '<div class="p-4 text-center text-xs text-red-400">Error al cargar la lista</div>';
   }
