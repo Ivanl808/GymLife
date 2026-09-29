@@ -468,6 +468,13 @@ async function renderRoutinesView(container) {
                 <p class="whitespace-pre-line text-slate-300 font-mono text-[11px] leading-relaxed">${r.instrucciones}</p>
               </div>
             ` : ''}
+
+            ${r.feedbackCoach ? `
+              <div class="p-3 bg-cyan-950/30 rounded-2xl border border-cyan-500/30 text-xs text-cyan-200 space-y-1 mb-3">
+                <span class="font-extrabold block text-[11px] uppercase tracking-wider text-cyan-400"><i class="fa-solid fa-comment-dots mr-1"></i>Evaluación / Feedback del Coach:</span>
+                <p class="text-cyan-100 italic text-[11px]">${r.feedbackCoach}</p>
+              </div>
+            ` : ''}
           </div>
 
           <div class="mt-2 pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
@@ -491,6 +498,9 @@ async function renderRoutinesView(container) {
               ` : ''}
 
               ${(isCoach || r.entrenador?.idUsuario === currentUser?.usuarioId) ? `
+                <button onclick="openCoachFeedbackModal(${r.idRutina}, '${r.nombre}')" class="p-1.5 text-cyan-400 hover:text-cyan-300 rounded-lg hover:bg-slate-800 transition-colors" title="Dejar Feedback o Evaluación">
+                  <i class="fa-solid fa-comment-dots"></i>
+                </button>
                 <button onclick="handleDeleteRoutine(${r.idRutina})" class="p-1.5 text-slate-500 hover:text-red-400 rounded-lg hover:bg-slate-800 transition-colors" title="Eliminar Rutina">
                   <i class="fa-solid fa-trash-can"></i>
                 </button>
@@ -1351,28 +1361,101 @@ async function submitClassForm(e) {
   }
 }
 
-async function openAssignRoutineModal() {
-  openModal('modal-routine');
-  const select = document.getElementById('routine-miembro-id');
-  if (!select) return;
+// ROUTINE TEMPLATES & COACH FEEDBACK UTILS
+let cachedCoachTemplates = [];
 
-  select.innerHTML = '<option value="">Cargando socios...</option>';
+async function openAssignRoutineModal() {
+  // Limpiar campos del formulario cada vez que se abre el modal
+  if (document.getElementById('routine-nombre')) document.getElementById('routine-nombre').value = '';
+  if (document.getElementById('routine-objetivo')) document.getElementById('routine-objetivo').value = 'Ganancia Muscular / Hipertrofia';
+  if (document.getElementById('routine-nivel')) document.getElementById('routine-nivel').value = 'Principiante';
+  if (document.getElementById('routine-duracion')) document.getElementById('routine-duracion').value = 50;
+  if (document.getElementById('routine-frecuencia')) document.getElementById('routine-frecuencia').value = '3 Días / Sem';
+  if (document.getElementById('routine-instrucciones')) document.getElementById('routine-instrucciones').value = '';
+
+  openModal('modal-routine');
+  const selectMember = document.getElementById('routine-miembro-id');
+  const selectTemplate = document.getElementById('routine-template-select');
+
+  if (selectMember) selectMember.innerHTML = '<option value="">Cargando socios...</option>';
+  if (selectTemplate) selectTemplate.innerHTML = '<option value="">-- Diseñar manualmente desde cero --</option>';
 
   try {
     const users = await GymLifeAPI.getUsers();
-    // Filtrar solo socios/miembros o todos los usuarios elegibles
     const socios = users.filter(u => u.rol === 'MIEMBRO' || u.idUsuario !== currentUser.usuarioId);
 
-    if (socios.length === 0) {
-      select.innerHTML = '<option value="">No hay socios registrados</option>';
-      return;
+    if (selectMember) {
+      if (socios.length === 0) {
+        selectMember.innerHTML = '<option value="">No hay socios registrados</option>';
+      } else {
+        selectMember.innerHTML = socios.map(s => `
+          <option value="${s.idUsuario}">${s.nombre} (${s.email})</option>
+        `).join('');
+      }
     }
 
-    select.innerHTML = socios.map(s => `
-      <option value="${s.idUsuario}">${s.nombre} (${s.email})</option>
-    `).join('');
+    // Cargar Plantillas Maestro del Entrenador
+    try {
+      cachedCoachTemplates = await GymLifeAPI.getRoutineTemplates(currentUser.usuarioId);
+      if (selectTemplate && cachedCoachTemplates.length > 0) {
+        selectTemplate.innerHTML = '<option value="">-- Diseñar manualmente desde cero --</option>' + 
+          cachedCoachTemplates.map(t => `<option value="${t.idPlantilla}">✨ ${t.nombre} (${t.nivel} - ${t.frecuencia})</option>`).join('');
+      }
+    } catch(e) {}
+
   } catch (err) {
-    select.innerHTML = '<option value="">Error cargando socios</option>';
+    if (selectMember) selectMember.innerHTML = '<option value="">Error cargando socios</option>';
+  }
+}
+
+function applyRoutineTemplateToForm() {
+  const selectTemplate = document.getElementById('routine-template-select');
+  if (!selectTemplate || !selectTemplate.value) return;
+
+  const templateId = parseInt(selectTemplate.value);
+  const template = cachedCoachTemplates.find(t => t.idPlantilla === templateId);
+
+  if (template) {
+    if (document.getElementById('routine-nombre')) document.getElementById('routine-nombre').value = template.nombre || '';
+    if (document.getElementById('routine-objetivo')) document.getElementById('routine-objetivo').value = template.objetivo || 'Ganancia Muscular / Hipertrofia';
+    if (document.getElementById('routine-nivel')) document.getElementById('routine-nivel').value = template.nivel || 'Principiante';
+    if (document.getElementById('routine-duracion')) document.getElementById('routine-duracion').value = template.duracion || 50;
+    if (document.getElementById('routine-frecuencia')) document.getElementById('routine-frecuencia').value = template.frecuencia || '3 Días / Sem';
+    if (document.getElementById('routine-instrucciones')) document.getElementById('routine-instrucciones').value = template.instrucciones || '';
+    showToast(`✨ Plantilla '${template.nombre}' cargada en el formulario`, 'info');
+  }
+}
+
+function openCoachFeedbackModal(rutinaId, nombreRutina) {
+  document.getElementById('feedback-routine-id').value = rutinaId;
+  document.getElementById('feedback-routine-name').textContent = `Para: ${nombreRutina}`;
+  document.getElementById('feedback-text').value = '';
+  openModal('modal-coach-feedback');
+}
+
+async function submitCoachFeedbackForm(e) {
+  e.preventDefault();
+  const rutinaId = document.getElementById('feedback-routine-id').value;
+  const feedback = document.getElementById('feedback-text').value.trim();
+
+  const btn = document.getElementById('btn-submit-feedback');
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner animate-spin"></i> Guardando Feedback...';
+  }
+
+  try {
+    await GymLifeAPI.addCoachFeedback(rutinaId, feedback);
+    closeModal('modal-coach-feedback');
+    showToast('¡Feedback de rendimiento guardado correctamente!', 'success');
+    renderView(currentTab);
+  } catch (err) {
+    showToast(err.message || 'Error al guardar el feedback', 'error');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fa-solid fa-check"></i> <span>Guardar Feedback de Rendimiento</span>';
+    }
   }
 }
 
@@ -1398,6 +1481,7 @@ async function submitRoutineForm(e) {
   }
 
   try {
+    // 1. Guardar la rutina en el miembro
     await GymLifeAPI.createRoutine(currentUser.usuarioId, miembroId, { 
       nombre, 
       objetivo, 
@@ -1406,6 +1490,18 @@ async function submitRoutineForm(e) {
       frecuencia, 
       instrucciones 
     });
+
+    // 2. Guardar automáticamente en la Biblioteca de Plantillas del Coach (Preset Library)
+    try {
+      await GymLifeAPI.saveRoutineTemplate(currentUser.usuarioId, {
+        nombre,
+        objetivo,
+        nivel,
+        duracion,
+        frecuencia,
+        instrucciones
+      });
+    } catch(e) {}
 
     closeModal('modal-routine');
     showToast('¡Rutina asignada y notificada por correo al socio!', 'success');

@@ -471,6 +471,16 @@
       </div>
 
       <form onsubmit="submitRoutineForm(event)" class="space-y-4">
+        <!-- Selector de Plantilla Predefinida (Preset Library) -->
+        <div class="p-3 bg-slate-900 rounded-2xl border border-slate-800">
+          <label class="block text-[11px] font-extrabold text-cyan-400 uppercase tracking-wider mb-1">
+            <i class="fa-solid fa-wand-magic-sparkles mr-1"></i> Cargar Desde Plantilla Maestro
+          </label>
+          <select id="routine-template-select" onchange="applyRoutineTemplateToForm()" class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-200 focus:border-cyan-500 focus:outline-none">
+            <option value="">-- Diseñar manualmente desde cero --</option>
+          </select>
+        </div>
+
         <div>
           <label class="block text-xs font-bold text-slate-300 mb-1.5">Socio / Atleta Destino</label>
           <select id="routine-miembro-id" required class="w-full px-4 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-white focus:border-brand-500 focus:outline-none">
@@ -527,6 +537,39 @@
         <button type="submit" id="btn-submit-routine" class="w-full py-3 bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-500 hover:to-brand-600 text-white font-extrabold text-xs rounded-xl shadow-lg shadow-brand-500/20 transition-all flex items-center justify-center gap-2">
           <i class="fa-solid fa-paper-plane"></i>
           <span>Asignar Rutina y Notificar por Correo</span>
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: GESTIÓN DE FEEDBACK / COMENTARIOS DEL COACH -->
+  <div id="modal-coach-feedback" class="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4 hidden">
+    <div class="glass-card w-full max-w-md p-6 sm:p-8 rounded-3xl border border-slate-800 relative shadow-2xl">
+      <button onclick="closeModal('modal-coach-feedback')" class="absolute top-5 right-5 text-slate-400 hover:text-white p-1">
+        <i class="fa-solid fa-xmark text-lg"></i>
+      </button>
+
+      <div class="flex items-center gap-3 mb-6">
+        <div class="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 flex items-center justify-center text-lg">
+          <i class="fa-solid fa-comment-dots"></i>
+        </div>
+        <div>
+          <h3 class="text-base font-extrabold text-white">Evaluación & Ajuste del Coach</h3>
+          <p class="text-xs text-slate-400" id="feedback-routine-name">Feedback de Rendimiento</p>
+        </div>
+      </div>
+
+      <form onsubmit="submitCoachFeedbackForm(event)" class="space-y-4">
+        <input type="hidden" id="feedback-routine-id">
+
+        <div>
+          <label class="block text-xs font-bold text-slate-300 mb-1.5">Comentario / Indicación Técnica de Progreso</label>
+          <textarea id="feedback-text" rows="4" required class="w-full px-4 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-white focus:border-cyan-500 focus:outline-none custom-scrollbar" placeholder="Ej: ¡Excelente ejecución en sentadilla! Para la siguiente semana aumentaremos +2.5kg por lado e incrementaremos el descanso a 2 minutos."></textarea>
+        </div>
+
+        <button type="submit" id="btn-submit-feedback" class="w-full py-3 bg-gradient-to-r from-cyan-600 to-cyan-500 hover:from-cyan-500 hover:to-cyan-600 text-white font-extrabold text-xs rounded-xl shadow-lg shadow-cyan-500/20 transition-all flex items-center justify-center gap-2">
+          <i class="fa-solid fa-check"></i>
+          <span>Guardar Feedback de Rendimiento</span>
         </button>
       </form>
     </div>

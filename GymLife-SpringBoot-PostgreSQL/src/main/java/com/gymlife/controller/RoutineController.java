@@ -86,6 +86,18 @@ public class RoutineController {
         return ResponseEntity.ok(routines.save(r));
     }
 
+    @PutMapping("/{rutinaId}/feedback")
+    public ResponseEntity<?> agregarFeedbackCoach(
+            @PathVariable Long rutinaId,
+            @RequestBody java.util.Map<String, String> body) {
+        Routine r = routines.findById(rutinaId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Rutina no encontrada"));
+        
+        String feedback = body.get("feedback");
+        r.setFeedbackCoach(feedback);
+        return ResponseEntity.ok(routines.save(r));
+    }
+
     @DeleteMapping("/{rutinaId}")
     public ResponseEntity<?> eliminarRutina(@PathVariable Long rutinaId) {
         Routine r = routines.findById(rutinaId)

@@ -241,6 +241,30 @@ class GymLifeAPI {
     });
   }
 
+  static addCoachFeedback(rutinaId, feedback) {
+    return this.request(`/rutinas/${rutinaId}/feedback`, {
+      method: 'PUT',
+      body: JSON.stringify({ feedback })
+    });
+  }
+
+  static getRoutineTemplates(entrenadorId) {
+    return this.request(`/plantillas-rutinas/entrenador/${entrenadorId}`);
+  }
+
+  static saveRoutineTemplate(entrenadorId, templateData) {
+    return this.request(`/plantillas-rutinas/entrenador/${entrenadorId}`, {
+      method: 'POST',
+      body: JSON.stringify(templateData)
+    });
+  }
+
+  static deleteRoutineTemplate(plantillaId) {
+    return this.request(`/plantillas-rutinas/${plantillaId}`, {
+      method: 'DELETE'
+    });
+  }
+
   static deleteRoutine(rutinaId) {
     return this.request(`/rutinas/${rutinaId}`, {
       method: 'DELETE'

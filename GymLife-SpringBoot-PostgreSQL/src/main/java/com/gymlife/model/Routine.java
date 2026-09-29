@@ -21,6 +21,9 @@ public class Routine {
     @Column(length = 2000)
     private String instrucciones;
 
+    @Column(length = 1000)
+    private String feedbackCoach;
+
     @Column(nullable = false)
     private String estado = "EN_PROGRESO";
 
@@ -109,6 +112,14 @@ public class Routine {
 
     public void setEstado(String estado) {
         this.estado = estado;
+    }
+
+    public String getFeedbackCoach() {
+        return feedbackCoach;
+    }
+
+    public void setFeedbackCoach(String feedbackCoach) {
+        this.feedbackCoach = feedbackCoach;
     }
 
     public User getEntrenador() {
