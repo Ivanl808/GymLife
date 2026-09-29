@@ -849,6 +849,9 @@ async function renderUsersView(container) {
                   </td>
                   <td class="p-3 text-right">
                     <div class="flex items-center justify-end gap-2">
+                      <button onclick="openChangeUserRoleModal(${u.idUsuario}, '${u.nombre}', '${u.rol}')" class="px-2.5 py-1.5 bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/30 rounded-xl text-[11px] font-bold transition-all flex items-center gap-1" title="Cambiar Rol de Seguridad">
+                        <i class="fa-solid fa-user-shield"></i> Rol
+                      </button>
                       <button onclick="openAdminAssignPlanModal(${u.idUsuario}, '${u.nombre}')" class="px-3 py-1.5 bg-brand-600/20 hover:bg-brand-600/30 text-brand-400 border border-brand-500/30 rounded-xl text-[11px] font-bold transition-all flex items-center gap-1.5">
                         <i class="fa-solid fa-id-card"></i> Gestionar Plan
                       </button>
@@ -1327,6 +1330,44 @@ async function handleCoachMarkCheckIn(claseId, usuarioId, nombreUsuario, userQrT
 }
 
 // CHECKOUT & CARD UTILS
+function openChangeUserRoleModal(userId, nombreUsuario, currentRole) {
+  document.getElementById('role-modal-user-id').value = userId;
+  document.getElementById('role-modal-user-name').textContent = `Para: ${nombreUsuario}`;
+  document.getElementById('role-modal-select-role').value = currentRole || 'MIEMBRO';
+  openModal('modal-change-user-role');
+}
+
+async function submitChangeUserRole(e) {
+  e.preventDefault();
+  const userId = document.getElementById('role-modal-user-id').value;
+  const newRole = document.getElementById('role-modal-select-role').value;
+
+  const btn = document.getElementById('btn-submit-change-role');
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner animate-spin"></i> Actualizando Rol...';
+  }
+
+  try {
+    // Actualizar usuario en backend
+    await GymLifeAPI.request(`/usuarios/${userId}/rol`, {
+      method: 'PUT',
+      body: JSON.stringify({ rol: newRole })
+    });
+
+    closeModal('modal-change-user-role');
+    showToast(`¡Rol actualizado exitosamente a '${newRole}'!`, 'success');
+    renderView('usuarios');
+  } catch (err) {
+    showToast(err.message || 'Error al actualizar el rol del usuario', 'error');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fa-solid fa-shield-check"></i> <span>Actualizar Rol en Sistema</span>';
+    }
+  }
+}
+
 function openCheckoutModal(planName, price, days) {
   selectedPlanForCheckout = { tipo: planName, monto: price, dias: days };
   

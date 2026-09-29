@@ -24,9 +24,14 @@ public class UserService {
             throw new IllegalArgumentException("El correo ya está registrado");
         }
         user.setPasswordHash(encoder.encode(user.getPasswordHash()));
-        if (user.getRol() == null) {
+        
+        // Regla Arquitectónica: El primer usuario que se registre en una BD vacía se convierte en ADMINISTRADOR principal automáticamente.
+        if (repository.count() == 0) {
+            user.setRol(Role.ADMINISTRADOR);
+        } else if (user.getRol() == null) {
             user.setRol(Role.MIEMBRO);
         }
+        
         if (user.getQrToken() == null || user.getQrToken().isBlank()) {
             user.setQrToken(java.util.UUID.randomUUID().toString());
         }
@@ -51,6 +56,10 @@ public class UserService {
 
     public List<User> listar() {
         return repository.findAll();
+    }
+
+    public User registrarSinHash(User user) {
+        return repository.save(user);
     }
 
     public User buscarPorQrToken(String qrToken) {
