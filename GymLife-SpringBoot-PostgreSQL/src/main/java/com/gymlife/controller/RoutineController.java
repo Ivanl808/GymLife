@@ -71,4 +71,10 @@ public class RoutineController {
         return ResponseEntity.ok(
                 routines.findByMiembroIdUsuario(miembroId));
     }
+
+    @GetMapping("/entrenador/{entrenadorId}")
+    public ResponseEntity<?> listarPorEntrenador(@PathVariable Long entrenadorId) {
+        return ResponseEntity.ok(
+                routines.findByEntrenadorIdUsuario(entrenadorId));
+    }
 }

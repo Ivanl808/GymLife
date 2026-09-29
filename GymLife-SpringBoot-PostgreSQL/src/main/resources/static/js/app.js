@@ -369,30 +369,47 @@ async function renderClassesView(container) {
   `;
 }
 
-let currentRoutineSubTab = 'mis-rutinas';
+let currentRoutineSubTab = 'creadas-por-mi';
 
 // 3. ROUTINES VIEW
 async function renderRoutinesView(container) {
   const isCoach = currentUser.rol === 'ENTRENADOR' || currentUser.rol === 'ADMINISTRADOR';
   const myRoutines = await GymLifeAPI.getRoutinesByMember(currentUser.usuarioId);
+  const createdByMeRoutines = isCoach ? await GymLifeAPI.getRoutinesByCoach(currentUser.usuarioId) : [];
   const allRoutines = isCoach ? await GymLifeAPI.getAllRoutines() : [];
 
-  const displayRoutines = (isCoach && currentRoutineSubTab === 'todas') ? allRoutines : myRoutines;
+  let displayRoutines = myRoutines;
+  if (isCoach) {
+    if (currentRoutineSubTab === 'creadas-por-mi') {
+      displayRoutines = createdByMeRoutines;
+    } else if (currentRoutineSubTab === 'todas') {
+      displayRoutines = allRoutines;
+    } else {
+      displayRoutines = myRoutines;
+    }
+  }
 
   container.innerHTML = `
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
       <div>
         <h2 class="text-xl font-extrabold text-white">
-          ${isCoach && currentRoutineSubTab === 'todas' ? 'Gestión Global de Rutinas' : 'Mis Rutinas de Entrenamiento'}
+          ${isCoach && currentRoutineSubTab === 'creadas-por-mi' 
+            ? 'Rutinas Asignadas por Mí' 
+            : (isCoach && currentRoutineSubTab === 'todas' ? 'Gestión Global de Rutinas' : 'Mis Rutinas Personales')}
         </h2>
         <p class="text-xs text-slate-400">
-          ${isCoach && currentRoutineSubTab === 'todas' ? 'Diseña y administra programas de ejercicios para todos los socios' : 'Planes de ejercicio personalizados asignados por tu entrenador'}
+          ${isCoach && currentRoutineSubTab === 'creadas-por-mi' 
+            ? 'Programas de entrenamiento diseñados por ti para tus alumnos' 
+            : (isCoach && currentRoutineSubTab === 'todas' ? 'Catálogo global de todas las rutinas prescritas en el gimnasio' : 'Planes de entrenamiento personalizados asignados a tu usuario')}
         </p>
       </div>
 
       <div class="flex flex-wrap items-center gap-2">
         ${isCoach ? `
           <div class="flex p-1 bg-slate-900 rounded-xl border border-slate-800">
+            <button onclick="switchRoutineSubTab('creadas-por-mi')" class="px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${currentRoutineSubTab === 'creadas-por-mi' ? 'bg-brand-600 text-white shadow' : 'text-slate-400 hover:text-white'}">
+              <i class="fa-solid fa-user-check mr-1"></i> Asignadas por Mí (${createdByMeRoutines.length})
+            </button>
             <button onclick="switchRoutineSubTab('mis-rutinas')" class="px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${currentRoutineSubTab === 'mis-rutinas' ? 'bg-brand-600 text-white shadow' : 'text-slate-400 hover:text-white'}">
               <i class="fa-solid fa-user mr-1"></i> Mis Rutinas (${myRoutines.length})
             </button>

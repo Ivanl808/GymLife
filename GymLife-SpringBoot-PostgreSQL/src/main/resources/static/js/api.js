@@ -217,6 +217,10 @@ class GymLifeAPI {
     return this.request(`/rutinas/miembro/${miembroId}`);
   }
 
+  static getRoutinesByCoach(entrenadorId) {
+    return this.request(`/rutinas/entrenador/${entrenadorId}`);
+  }
+
   static getAllRoutines() {
     return this.request('/rutinas');
   }
