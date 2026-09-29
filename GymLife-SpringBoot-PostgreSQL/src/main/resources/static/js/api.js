@@ -207,6 +207,12 @@ class GymLifeAPI {
     });
   }
 
+  static cancelReservation(claseId, usuarioId) {
+    return this.request(`/clases/${claseId}/reservar/${usuarioId}`, {
+      method: 'DELETE'
+    });
+  }
+
   static registerAttendance(claseId, usuarioId, codigoQR) {
     return this.request(`/clases/${claseId}/asistencia/${usuarioId}?codigoQR=${encodeURIComponent(codigoQR)}`, {
       method: 'POST'
@@ -223,6 +229,18 @@ class GymLifeAPI {
 
   static getAllRoutines() {
     return this.request('/rutinas');
+  }
+
+  static completeRoutine(rutinaId) {
+    return this.request(`/rutinas/${rutinaId}/completar`, {
+      method: 'PUT'
+    });
+  }
+
+  static deleteRoutine(rutinaId) {
+    return this.request(`/rutinas/${rutinaId}`, {
+      method: 'DELETE'
+    });
   }
 
   static getAttendancesByUser(usuarioId) {

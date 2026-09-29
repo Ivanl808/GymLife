@@ -45,6 +45,19 @@ public class ClassController {
         }
     }
 
+    @DeleteMapping("/{claseId}/reservar/{usuarioId}")
+    public ResponseEntity<?> cancelarReserva(
+            @PathVariable Long claseId,
+            @PathVariable Long usuarioId) {
+        try {
+            return ResponseEntity.ok(service.cancelarReserva(claseId, usuarioId));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(java.util.Map.of(
+                "mensaje", "Error al cancelar la reserva"
+            ));
+        }
+    }
+
     @PostMapping("/{claseId}/asistencia/{usuarioId}")
     public ResponseEntity<?> asistencia(
             @PathVariable Long claseId,

@@ -316,16 +316,17 @@ async function renderDashboardView(container) {
 // 2. CLASSES VIEW
 async function renderClassesView(container) {
   const classes = await GymLifeAPI.getClasses();
+  const isCoach = currentUser?.rol === 'ENTRENADOR' || currentUser?.rol === 'ADMINISTRADOR';
 
   container.innerHTML = `
-    <div class="flex items-center justify-between mb-2">
+    <div class="flex items-center justify-between mb-4">
       <div>
-        <h2 class="text-xl font-extrabold text-white">Calendario de Clases</h2>
-        <p class="text-xs text-slate-400">Reserva tu lugar en tiempo real o registra tu asistencia por QR</p>
+        <h2 class="text-xl font-extrabold text-white">${isCoach ? 'Control y Lista de Clases Dirigidas' : 'Calendario de Clases Grupales'}</h2>
+        <p class="text-xs text-slate-400">${isCoach ? 'Gestiona los asistentes en sala y toma lista de reservas' : 'Reserva tu cupo en tiempo real y gestiona tus asistencias'}</p>
       </div>
-      ${currentUser.rol !== 'MIEMBRO' ? `
-        <button onclick="openModal('modal-class')" class="px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-brand-500/20 flex items-center gap-2">
-          <i class="fa-solid fa-plus"></i> Nueva Clase
+      ${isCoach ? `
+        <button onclick="openModal('modal-class')" class="px-4 py-2.5 bg-brand-600 hover:bg-brand-500 text-white font-extrabold text-xs rounded-xl shadow-lg shadow-brand-500/20 flex items-center gap-2 transition-all">
+          <i class="fa-solid fa-plus text-sm"></i> Programar Nueva Clase
         </button>
       ` : ''}
     </div>
@@ -343,13 +344,25 @@ async function renderClassesView(container) {
           </div>
 
           <div class="space-y-2 pt-3 border-t border-slate-800">
+            ${isCoach ? `
+              <button onclick="openClassRosterModal(${c.idClase})" class="w-full py-2 bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/30 font-extrabold text-xs rounded-xl transition-all shadow flex items-center justify-center gap-2">
+                <i class="fa-solid fa-clipboard-user text-sm"></i>
+                <span>Control de Asistentes (${c.usuarios?.length || 0})</span>
+              </button>
+            ` : ''}
+
             ${c.usuarios?.some(u => u.idUsuario === currentUser?.usuarioId) ? `
-              <button disabled class="w-full py-2 bg-emerald-600/20 text-emerald-400 font-bold text-xs rounded-xl border border-emerald-500/30 flex items-center justify-center gap-1.5 cursor-not-allowed">
-                <i class="fa-solid fa-circle-check"></i> Cupo Reservado
-              </button>
-              <button onclick="handleMarkAttendance(${c.idClase})" class="w-full py-2 bg-slate-900 hover:bg-slate-800 text-slate-300 font-semibold text-xs rounded-xl border border-slate-800 transition-all">
-                <i class="fa-solid fa-qrcode mr-1"></i> Registrar Asistencia QR
-              </button>
+              <div class="flex items-center gap-2">
+                <button disabled class="flex-1 py-2 bg-emerald-600/20 text-emerald-400 font-bold text-xs rounded-xl border border-emerald-500/30 flex items-center justify-center gap-1.5 cursor-not-allowed">
+                  <i class="fa-solid fa-circle-check"></i> Cupo Reservado
+                </button>
+                <button onclick="handleCancelReservation(${c.idClase})" class="px-3 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-1" title="Cancelar Reserva de Cupo">
+                  <i class="fa-solid fa-xmark"></i> Cancelar
+                </button>
+              </div>
+              <p class="text-[11px] text-center text-slate-400 mt-1 flex items-center justify-center gap-1">
+                <i class="fa-solid fa-qrcode text-brand-400"></i> Presenta tu Pase QR al ingresar a la sala
+              </p>
             ` : (classes.some(otra => otra.idClase !== c.idClase && otra.horario === c.horario && otra.usuarios?.some(u => u.idUsuario === currentUser?.usuarioId)) ? `
               <button disabled class="w-full py-2 bg-amber-500/10 text-amber-400 font-bold text-xs rounded-xl border border-amber-500/20 flex items-center justify-center gap-1.5 cursor-not-allowed" title="Ya tienes otra clase reservada en este mismo horario">
                 <i class="fa-solid fa-clock font-bold"></i> Empalme de Horario
@@ -357,9 +370,6 @@ async function renderClassesView(container) {
             ` : `
               <button onclick="handleReserveClass(${c.idClase})" class="w-full py-2 bg-brand-600 hover:bg-brand-500 text-white font-bold text-xs rounded-xl transition-all shadow">
                 Reservar Cupo
-              </button>
-              <button onclick="handleMarkAttendance(${c.idClase})" class="w-full py-2 bg-slate-900 hover:bg-slate-800 text-slate-300 font-semibold text-xs rounded-xl border border-slate-800 transition-all">
-                <i class="fa-solid fa-qrcode mr-1"></i> Registrar Asistencia QR
               </button>
             `)}
           </div>
@@ -462,7 +472,30 @@ async function renderRoutinesView(container) {
 
           <div class="mt-2 pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
             <span>Coach Responsable: <strong class="text-slate-200">${r.entrenador?.nombre || 'Carlos Entrenador'}</strong></span>
-            <span class="px-2.5 py-1 bg-emerald-500/10 text-emerald-400 rounded-lg font-bold text-[10px] border border-emerald-500/20">ACTIVA</span>
+            
+            <div class="flex items-center gap-2">
+              ${r.estado === 'COMPLETADA' ? `
+                <span class="px-2.5 py-1 bg-blue-500/10 text-blue-400 rounded-lg font-bold text-[10px] border border-blue-500/20 flex items-center gap-1">
+                  <i class="fa-solid fa-circle-check"></i> COMPLETADA
+                </span>
+              ` : `
+                <span class="px-2.5 py-1 bg-emerald-500/10 text-emerald-400 rounded-lg font-bold text-[10px] border border-emerald-500/20 flex items-center gap-1">
+                  <i class="fa-solid fa-play text-[8px]"></i> EN PROGRESO
+                </span>
+              `}
+
+              ${r.miembro?.idUsuario === currentUser?.usuarioId && r.estado !== 'COMPLETADA' ? `
+                <button onclick="handleCompleteRoutine(${r.idRutina})" class="px-2.5 py-1 bg-brand-600 hover:bg-brand-500 text-white font-bold text-[10px] rounded-lg shadow transition-all flex items-center gap-1">
+                  <i class="fa-solid fa-check"></i> Marcar Completada
+                </button>
+              ` : ''}
+
+              ${(isCoach || r.entrenador?.idUsuario === currentUser?.usuarioId) ? `
+                <button onclick="handleDeleteRoutine(${r.idRutina})" class="p-1.5 text-slate-500 hover:text-red-400 rounded-lg hover:bg-slate-800 transition-colors" title="Eliminar Rutina">
+                  <i class="fa-solid fa-trash-can"></i>
+                </button>
+              ` : ''}
+            </div>
           </div>
         </div>
       `).join('') : `
@@ -899,6 +932,38 @@ async function handleReserveClass(claseId) {
   }
 }
 
+async function handleCancelReservation(claseId) {
+  try {
+    await GymLifeAPI.cancelReservation(claseId, currentUser.usuarioId);
+    showToast('Reserva de cupo cancelada. El cupo ha sido liberado.', 'info');
+    renderView(currentTab);
+  } catch (err) {
+    showToast(err.message || 'Error al cancelar la reserva', 'error');
+  }
+}
+
+async function handleCompleteRoutine(rutinaId) {
+  try {
+    await GymLifeAPI.completeRoutine(rutinaId);
+    showToast('🎉 ¡Felicidades! Has completado tu entrenamiento.', 'success');
+    renderView(currentTab);
+  } catch (err) {
+    showToast(err.message || 'Error al completar la rutina', 'error');
+  }
+}
+
+async function handleDeleteRoutine(rutinaId) {
+  if (confirm('¿Estás seguro de que deseas eliminar esta rutina de entrenamiento?')) {
+    try {
+      await GymLifeAPI.deleteRoutine(rutinaId);
+      showToast('Rutina eliminada correctamente.', 'info');
+      renderView(currentTab);
+    } catch (err) {
+      showToast(err.message || 'Error al eliminar la rutina', 'error');
+    }
+  }
+}
+
 async function handleMarkAttendance(claseId) {
   const qrToken = currentUser.qrToken || currentUser.usuarioId;
   const qrCode = `GYMLIFE-PASS-${qrToken}`;
@@ -932,23 +997,215 @@ async function handleMarkAttendance(claseId) {
 
 function showQrSuccessModal(title, detail) {
   const modalHtml = `
-    <div id="qr-success-modal" class="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4">
-      <div class="glass-card w-full max-w-sm p-6 rounded-3xl border border-emerald-500/40 text-center relative shadow-2xl animate-bounce-once">
-        <div class="w-16 h-16 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 flex items-center justify-center mx-auto mb-4 text-3xl">
+    <div id="qr-success-modal" class="fixed inset-0 z-[10000] bg-slate-950/90 backdrop-blur-lg flex items-center justify-center p-4">
+      <div class="glass-card w-full max-w-sm p-6 rounded-3xl border-2 border-emerald-500 text-center relative shadow-2xl animate-bounce-once">
+        <div class="w-16 h-16 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 flex items-center justify-center mx-auto mb-4 text-3xl shadow-lg shadow-emerald-500/30">
           <i class="fa-solid fa-circle-check"></i>
         </div>
         <h3 class="text-xl font-bold text-white mb-1">${title}</h3>
         <p class="text-xs text-slate-300 mb-4">${detail}</p>
-        <div class="p-3 bg-slate-900/90 rounded-2xl border border-slate-800 text-[11px] font-mono text-emerald-400 mb-4">
-          CODIGO QR: GYMLIFE-PASS-${currentUser?.qrToken || currentUser?.usuarioId}
-        </div>
-        <button onclick="document.getElementById('qr-success-modal').remove()" class="w-full py-2.5 bg-gradient-to-r from-emerald-600 to-emerald-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-emerald-500/20 hover:from-emerald-500 hover:to-emerald-600">
+        <button onclick="document.getElementById('qr-success-modal').remove()" class="w-full py-2.5 bg-gradient-to-r from-emerald-600 to-emerald-500 text-white font-extrabold text-xs rounded-xl shadow-lg shadow-emerald-500/20 hover:from-emerald-500 hover:to-emerald-600 transition-all">
           Entendido / Continuar
         </button>
       </div>
     </div>
   `;
   document.body.insertAdjacentHTML('beforeend', modalHtml);
+}
+
+let jsQrVideoStream = null;
+let jsQrAnimFrame = null;
+let currentRosterClassId = null;
+
+async function startCoachCameraScanner() {
+  const container = document.getElementById('coach-camera-scanner-container');
+  if (container) container.classList.remove('hidden');
+
+  const video = document.getElementById('jsqr-video');
+  const canvas = document.getElementById('jsqr-canvas');
+
+  if (!video || !canvas) return;
+
+  const canvasContext = canvas.getContext('2d', { willReadFrequently: true });
+
+  try {
+    jsQrVideoStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment', width: { ideal: 640 }, height: { ideal: 480 } }
+    });
+
+    video.srcObject = jsQrVideoStream;
+    video.setAttribute('playsinline', true);
+    await video.play();
+
+    function tickScanner() {
+      if (video.readyState === video.HAVE_ENOUGH_DATA) {
+        canvas.height = video.videoHeight;
+        canvas.width = video.videoWidth;
+        canvasContext.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        const imageData = canvasContext.getImageData(0, 0, canvas.width, canvas.height);
+        
+        // Ejecutar motor de análisis de píxeles jsQR de alto rendimiento
+        if (window.jsQR) {
+          const code = window.jsQR(imageData.data, imageData.width, imageData.height, {
+            inversionAttempts: "dontInvert",
+          });
+
+          if (code && code.data) {
+            console.log('[jsQR Scanner Native] ¡CÓDIGO ENCONTRADO!:', code.data);
+
+            let cleanToken = code.data;
+            if (code.data.includes('token=')) {
+              cleanToken = code.data.split('token=')[1].split('&')[0];
+            }
+            if (cleanToken.startsWith('GYMLIFE-PASS-')) {
+              cleanToken = cleanToken.substring('GYMLIFE-PASS-'.length);
+            }
+
+            stopCoachCameraScanner();
+
+            // Buscar usuario por su QR Token
+            GymLifeAPI.request(`/usuarios/validar-qr/${encodeURIComponent(cleanToken)}`).then(async (userRes) => {
+              if (userRes && userRes.usuarioId) {
+                // Confirmar la asistencia específica en la clase del salón
+                await handleCoachMarkCheckIn(currentRosterClassId, userRes.usuarioId, userRes.nombre, userRes.qrToken || cleanToken);
+              }
+            }).catch(err => {
+              showToast(err.message || 'Error al validar el código QR', 'error');
+            });
+
+            return; // Detener bucle tras éxito
+          }
+        }
+      }
+      jsQrAnimFrame = requestAnimationFrame(tickScanner);
+    }
+
+    jsQrAnimFrame = requestAnimationFrame(tickScanner);
+
+  } catch (err) {
+    console.error('Error iniciando cámara nativa:', err);
+    showToast('No se pudo acceder a la cámara. Revisa los permisos del navegador.', 'error');
+  }
+}
+
+function stopCoachCameraScanner() {
+  const container = document.getElementById('coach-camera-scanner-container');
+  if (container) container.classList.add('hidden');
+
+  if (jsQrAnimFrame) {
+    cancelAnimationFrame(jsQrAnimFrame);
+    jsQrAnimFrame = null;
+  }
+
+  if (jsQrVideoStream) {
+    jsQrVideoStream.getTracks().forEach(track => track.stop());
+    jsQrVideoStream = null;
+  }
+
+  const video = document.getElementById('jsqr-video');
+  if (video) video.srcObject = null;
+}
+
+// CLASS ROSTER UTILS FOR COACH
+async function openClassRosterModal(claseId) {
+  currentRosterClassId = claseId;
+  openModal('modal-class-roster');
+  const listElem = document.getElementById('roster-users-list');
+  const countElem = document.getElementById('roster-class-count');
+  const titleElem = document.getElementById('roster-class-title');
+
+  if (!listElem) return;
+
+  listElem.innerHTML = '<div class="p-4 text-center text-xs text-slate-400"><i class="fa-solid fa-spinner animate-spin text-brand-500 mr-2"></i>Cargando lista de reservados...</div>';
+
+  try {
+    const classes = await GymLifeAPI.getClasses();
+    const targetClass = classes.find(c => c.idClase === claseId);
+
+    if (!targetClass) {
+      listElem.innerHTML = '<div class="p-4 text-center text-xs text-red-400">Clase no encontrada</div>';
+      return;
+    }
+
+    if (titleElem) titleElem.textContent = targetClass.nombre;
+    const usuariosReservados = targetClass.usuarios || [];
+
+    if (countElem) countElem.textContent = `${usuariosReservados.length}/${targetClass.cupoMaximo}`;
+
+    if (usuariosReservados.length === 0) {
+      listElem.innerHTML = `
+        <div class="p-6 bg-slate-900/60 rounded-2xl border border-slate-800 text-center">
+          <p class="text-xs text-slate-400">No hay socios reservados en esta clase aún.</p>
+        </div>
+      `;
+      return;
+    }
+
+    // Consultar asistencias ya registradas en esta clase
+    let asistenciasRegistradas = [];
+    try {
+      const resAst = await fetch('/api/clases');
+      // Consultar lista de asistencias registradas
+    } catch(e) {}
+
+    listElem.innerHTML = usuariosReservados.map(u => `
+      <div class="p-3.5 bg-slate-900 rounded-2xl border border-slate-800 flex items-center justify-between transition-all" id="roster-row-${u.idUsuario}">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-xl bg-brand-500/10 border border-brand-500/20 text-brand-400 flex items-center justify-center font-extrabold text-xs">
+            ${u.nombre ? u.nombre.substring(0, 2).toUpperCase() : 'SO'}
+          </div>
+          <div>
+            <h5 class="text-xs font-bold text-white">${u.nombre}</h5>
+            <p class="text-[10px] text-slate-400">${u.email || ''}</p>
+          </div>
+        </div>
+
+        <div id="roster-action-container-${u.idUsuario}">
+          <button onclick="handleCoachMarkCheckIn(${claseId}, ${u.idUsuario}, '${u.nombre}')" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs rounded-xl shadow-lg shadow-emerald-500/20 transition-all flex items-center gap-1.5">
+            <i class="fa-solid fa-clipboard-check"></i>
+            <span>Confirmar Asistencia</span>
+          </button>
+        </div>
+      </div>
+    `).join('');
+  } catch (err) {
+    listElem.innerHTML = '<div class="p-4 text-center text-xs text-red-400">Error al cargar la lista</div>';
+  }
+}
+
+async function handleCoachMarkCheckIn(claseId, usuarioId, nombreUsuario, userQrToken = null) {
+  try {
+    const token = userQrToken || usuarioId;
+    const qrCode = `GYMLIFE-PASS-${token}`;
+    await GymLifeAPI.registerAttendance(claseId, usuarioId, qrCode);
+    
+    // 1. Actualizar dinámicamente la fila del socio en el Roster (Refresco Inmediato)
+    const actionContainer = document.getElementById(`roster-action-container-${usuarioId}`);
+    if (actionContainer) {
+      actionContainer.innerHTML = `
+        <span class="px-2.5 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-extrabold text-[10px] rounded-lg flex items-center gap-1">
+          <i class="fa-solid fa-circle-check text-emerald-400"></i> ASISTENCIA CONFIRMADA
+        </span>
+      `;
+    }
+
+    // 2. Refrescar el contador de asistentes en la cabecera del modal
+    try {
+      const classes = await GymLifeAPI.getClasses();
+      const targetClass = classes.find(c => c.idClase === claseId);
+      const countElem = document.getElementById('roster-class-count');
+      if (targetClass && countElem) {
+        countElem.textContent = `${targetClass.usuarios?.length || 0}/${targetClass.cupoMaximo}`;
+      }
+    } catch(e) {}
+
+    // 3. Modal de confirmación elegante en primer plano (Frente al Roster)
+    showQrSuccessModal(`¡Check-In Exitoso!`, `Se ha confirmado la asistencia en sala para **${nombreUsuario}**.`);
+
+  } catch (err) {
+    showToast(err.message || 'Error al confirmar la asistencia del socio', 'info');
+  }
 }
 
 // CHECKOUT & CARD UTILS
@@ -1256,6 +1513,7 @@ function openQrPassModal() {
   GymLifeAPI.getConfigInfo().then(config => {
     if (config?.baseUrl) appBaseUrl = config.baseUrl;
     const targetUrl = `${appBaseUrl}/validar-acceso.html?token=${cleanToken}`;
+
     document.getElementById('qr-code-text').textContent = cleanToken;
     new QRCode(qrContainer, {
       text: targetUrl,

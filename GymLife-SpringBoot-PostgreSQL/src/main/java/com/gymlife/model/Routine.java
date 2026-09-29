@@ -21,6 +21,9 @@ public class Routine {
     @Column(length = 2000)
     private String instrucciones;
 
+    @Column(nullable = false)
+    private String estado = "EN_PROGRESO";
+
     @ManyToOne(optional = false)
     @JoinColumn(name = "entrenador_id")
     private User entrenador;
@@ -98,6 +101,14 @@ public class Routine {
 
     public void setInstrucciones(String instrucciones) {
         this.instrucciones = instrucciones;
+    }
+
+    public String getEstado() {
+        return estado;
+    }
+
+    public void setEstado(String estado) {
+        this.estado = estado;
     }
 
     public User getEntrenador() {

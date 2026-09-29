@@ -88,6 +88,17 @@ public class ClassService {
         return savedClass;
     }
 
+    public GroupClass cancelarReserva(Long claseId, Long usuarioId) {
+        GroupClass c = classes.findById(claseId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Clase no encontrada"));
+        
+        if (c.getUsuarios() != null) {
+            c.getUsuarios().removeIf(u -> u.getIdUsuario() != null && u.getIdUsuario().equals(usuarioId));
+        }
+        
+        return classes.save(c);
+    }
+
     public Attendance registrarAsistencia(Long claseId,
                                           Long usuarioId,
                                           String codigoQR) {

@@ -77,4 +77,20 @@ public class RoutineController {
         return ResponseEntity.ok(
                 routines.findByEntrenadorIdUsuario(entrenadorId));
     }
+
+    @PutMapping("/{rutinaId}/completar")
+    public ResponseEntity<?> completarRutina(@PathVariable Long rutinaId) {
+        Routine r = routines.findById(rutinaId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Rutina no encontrada"));
+        r.setEstado("COMPLETADA");
+        return ResponseEntity.ok(routines.save(r));
+    }
+
+    @DeleteMapping("/{rutinaId}")
+    public ResponseEntity<?> eliminarRutina(@PathVariable Long rutinaId) {
+        Routine r = routines.findById(rutinaId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Rutina no encontrada"));
+        routines.delete(r);
+        return ResponseEntity.ok(java.util.Map.of("mensaje", "Rutina eliminada correctamente"));
+    }
 }
